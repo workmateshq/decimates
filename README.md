@@ -1,6 +1,6 @@
 # Rapmates
 
-A party rap battle for up to 4 mates, plus a crowd. Everyone's in the same room (or on a call): the game drops the beat, a bouncing ball keeps time and rhyme prompts tell you which word to land on the 4th beat of every bar. Spit 16 bars each, the room rates you out of 5 stars, and the best average takes the mic. Play it at **https://zakrowling.github.io/rapmates/** or jump straight into the shared room at **https://zakrowling.github.io/rapmates/mate**.
+A party rap battle for up to 4 mates, plus a crowd. Everyone's in the same room (or on a call): the game drops the beat, a bouncing ball keeps time and rhyme prompts tell you which word to land on the 4th beat of every bar. Spit 16 bars each, the room rates you out of 5 stars, and the best average takes the mic. Play it at **https://workmateshq.github.io/rapmates/** or jump straight into the shared room at **https://workmateshq.github.io/rapmates/mate**.
 
 - **Rappers and the crowd**: the first 4 people in a room get the P1–P4 slots; everyone after that joins the **crowd** (shown as "Crowd: N" in the lobby). Everybody gets a real rapper's name (half men, half women, unique in the room). Between games, a free slot goes to whoever's waited longest in the crowd.
 - **No mics needed**: nobody's audio is sent anywhere. Every screen plays the same beat and shows the same bars at the same moment; you rap out loud.
