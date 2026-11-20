@@ -1,0 +1,1121 @@
+(() => {
+  const net = window.RapmatesNet.createNet();
+  const { localNow } = window.RapmatesNet;
+  const Engine = window.RapmatesEngine;
+  const Words = window.RapmatesWords;
+  const Beats = window.RapmatesBeats;
+  const COUNT_IN = Engine.COUNT_IN_BEATS;
+  const BARS = Engine.BARS;
+  const BPB = Engine.BEATS_PER_BAR;
+  const TOTAL_BEATS = BARS * BPB;
+  const COUNT_WORDS = ['3', '2', '1', 'GO!'];
+  const SOLO_LEAD_MS = 2500;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const state = {
+    playerId: null,
+    hostId: null,
+    linkRoom: false, // entered via a link like /rapmates/mate: no room code UI
+    lobby: { players: [], crowd: [], beat: 'trap', started: false },
+    game: null, // { round, beat, bpm, order, results, players }
+    phase: null, // the latest phase payload from the host
+    over: null, // the latest results
+    away: false, // pressed Home mid-game: still in the room, not watching
+    solo: null, // { beat, name } in solo practice
+    myVote: 0,
+    voted: false,
+  };
+
+  // ---------- Sound ----------
+  // One AudioContext: the beat goes through the music gain, effects through the sfx gain.
+
+  let ac = null;
+  let sfxGain = null;
+  let musicGain = null;
+  const soundPrefs = (() => {
+    const read = (k) => { try { return localStorage.getItem(`rapmates-${k}`) !== 'off'; } catch { return true; } };
+    return { music: read('music'), sfx: read('sfx') };
+  })();
+
+  function getAudioCtx() {
+    if (!ac) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      ac = new Ctx({ latencyHint: 'interactive' });
+      const comp = ac.createDynamicsCompressor();
+      comp.threshold.value = -10;
+      comp.ratio.value = 4;
+      comp.connect(ac.destination);
+      sfxGain = ac.createGain();
+      musicGain = ac.createGain();
+      sfxGain.connect(comp);
+      musicGain.connect(comp);
+      applySoundPrefs();
+      ac.addEventListener('statechange', () => {
+        if (ac.state === 'running' && stage.turn) anchorAudio();
+        updateNudge();
+      });
+    }
+    if (ac.state === 'suspended') ac.resume().catch(() => {});
+    return ac;
+  }
+  // Browsers only allow audio after a user gesture.
+  ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => { if (!ac || ac.state !== 'running') getAudioCtx(); }, true));
+
+  // Where the speakers are right now in audio time (smooth, between the audio thread's updates).
+  function audioNow() {
+    if (ac.getOutputTimestamp) {
+      const ts = ac.getOutputTimestamp();
+      if (ts && ts.performanceTime) return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+    }
+    return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0);
+  }
+
+  function env(t, peak, attack, decay, dest = sfxGain) {
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+    g.connect(dest);
+    return g;
+  }
+  function tone(t, type, f0, f1, dur, peak, attack = 0.005) {
+    const o = ac.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    o.connect(env(t, peak, attack, dur));
+    o.start(t);
+    o.stop(t + attack + dur + 0.05);
+    return o;
+  }
+  let noiseBuf = null;
+  function noise(t, dur, type, freq, peak, q = 1) {
+    if (!noiseBuf) {
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ac.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ac.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    src.connect(f).connect(env(t, peak, 0.003, dur));
+    src.start(t, Math.random() * 0.5);
+    src.stop(t + dur + 0.05);
+  }
+
+  const sfx = {
+    // Woodblock count-in click; the GO beat is higher.
+    count(t, go) {
+      tone(t, 'sine', go ? 1760 : 1175, go ? 1760 : 1175, 0.08, 0.5, 0.001);
+      tone(t, 'triangle', go ? 880 : 587, go ? 880 : 587, 0.05, 0.25, 0.001);
+    },
+    star(n) {
+      const t = ac.currentTime;
+      tone(t, 'triangle', 440 * 2 ** ((n * 2) / 12), 440 * 2 ** ((n * 2 + 5) / 12), 0.12, 0.3);
+    },
+    submit() {
+      const t = ac.currentTime;
+      [0, 4, 7, 12].forEach((s, i) => tone(t + i * 0.06, 'square', 523 * 2 ** (s / 12), 523 * 2 ** (s / 12), 0.09, 0.08));
+    },
+    ding() {
+      const t = ac.currentTime;
+      tone(t, 'sine', 988, 988, 0.5, 0.25);
+      tone(t + 0.12, 'sine', 1319, 1319, 0.7, 0.25);
+    },
+    // Crowd cheer: a swell of noise plus claps, bigger for a better score.
+    cheer(stars = 3) {
+      const t = ac.currentTime;
+      const size = Math.max(0.3, stars / 5);
+      noise(t, 1.6, 'bandpass', 1400, 0.35 * size, 0.5);
+      noise(t + 0.1, 1.3, 'bandpass', 2600, 0.2 * size, 0.7);
+      const claps = Math.round(10 + 24 * size);
+      for (let i = 0; i < claps; i++) noise(t + Math.random() * 1.4, 0.05, 'bandpass', 1000 + Math.random() * 1500, 0.3 * size, 1.5);
+    },
+    // Air horn: detuned saws with a little pitch scoop. BWAP BWAP BWAAAAP.
+    airhorn() {
+      const t0 = ac.currentTime;
+      [[0, 0.16], [0.22, 0.16], [0.44, 0.8]].forEach(([d, len]) => {
+        const t = t0 + d;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+        g.gain.setValueAtTime(0.18, t + len - 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        const f = ac.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = 2600;
+        f.connect(g).connect(sfxGain);
+        [0, 7, -9, 1205].forEach((cents) => {
+          const o = ac.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(400, t);
+          o.frequency.exponentialRampToValueAtTime(466, t + 0.05);
+          o.detune.value = cents;
+          o.connect(f);
+          o.start(t);
+          o.stop(t + len + 0.05);
+        });
+      });
+    },
+  };
+  function playSfx(name, ...args) {
+    if (!ac || ac.state !== 'running') return;
+    sfx[name](...args);
+  }
+
+  // ---------- Music and sound effects on/off ----------
+  function applySoundPrefs() {
+    if (sfxGain) sfxGain.gain.value = soundPrefs.sfx ? 0.8 : 0;
+    if (musicGain) musicGain.gain.value = soundPrefs.music ? 1 : 0;
+    [['music-toggle', soundPrefs.music, 'Music'], ['sfx-toggle', soundPrefs.sfx, 'Sound effects']].forEach(([id, on, label]) => {
+      const btn = $(id);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.classList.toggle('off', !on);
+      btn.title = `${label} ${on ? 'on' : 'off'} (click to turn ${on ? 'off' : 'on'})`;
+    });
+  }
+  [['music-toggle', 'music'], ['sfx-toggle', 'sfx']].forEach(([id, key]) => {
+    $(id).addEventListener('click', (e) => {
+      soundPrefs[key] = !soundPrefs[key];
+      try { localStorage.setItem(`rapmates-${key}`, soundPrefs[key] ? 'on' : 'off'); } catch { /* private mode */ }
+      applySoundPrefs();
+      if (e.detail) e.currentTarget.blur();
+    });
+  });
+  applySoundPrefs();
+
+  // ---------- Mic characters ----------
+
+  // A gritty chrome mic: wire-mesh grille, a band in the player's colour, paint drips down the handle,
+  // and for the mascot / winners a bandana wrap and a gold chain. Ids are unique per drawing.
+  let micId = 0;
+  function micSvg(color, { chain = false, bandana = false } = {}) {
+    const id = `mic${++micId}`;
+    return `
+      <defs>
+        <radialGradient id="${id}c" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#c9ced6"/><stop offset=".7" stop-color="#6b7079"/><stop offset="1" stop-color="#2c2f35"/></radialGradient>
+        <linearGradient id="${id}h" x1="0" x2="1"><stop offset="0" stop-color="#1a1a1a"/><stop offset=".45" stop-color="#5a5a5a"/><stop offset=".6" stop-color="#2e2e2e"/><stop offset="1" stop-color="#111"/></linearGradient>
+        <clipPath id="${id}g"><circle cx="50" cy="34" r="27"/></clipPath>
+      </defs>
+      <ellipse cx="50" cy="115" rx="18" ry="3.5" fill="rgba(0,0,0,.35)"/>
+      <path d="M40 62h20l-3 48a7 7 0 0 1-14 0z" fill="url(#${id}h)"/>
+      <g stroke="rgba(255,255,255,.12)" stroke-width="2"><path d="M42 74h16M42.5 82h15M43 90h14M43.5 98h13"/></g>
+      <path d="M44 66c0 10-2 14 1 20s-1 9 1 12" stroke="${color}" stroke-width="4" fill="none" stroke-linecap="round" opacity=".9"/>
+      <circle cx="46" cy="99" r="2.6" fill="${color}" opacity=".9"/>
+      <path d="M55 66v13" stroke="${color}" stroke-width="3" stroke-linecap="round" opacity=".85"/><circle cx="55" cy="82" r="2.1" fill="${color}" opacity=".85"/>
+      <rect x="33" y="55" width="34" height="11" rx="3" fill="${color}"/>
+      <rect x="33" y="55" width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,.35)"/>
+      <circle cx="50" cy="34" r="27" fill="url(#${id}c)"/>
+      <g clip-path="url(#${id}g)" stroke="rgba(20,22,26,.55)" stroke-width="1.6">
+        ${[...Array(12).keys()].map((i) => `<path d="M${10 + i * 7} 0 L${i * 7 - 20} 70"/><path d="M${i * 7 - 20} 0 L${10 + i * 7} 70"/>`).join('')}
+      </g>
+      <circle cx="50" cy="34" r="27" fill="none" stroke="#1b1d21" stroke-width="2.5"/>
+      <ellipse cx="40" cy="20" rx="9" ry="4.5" fill="rgba(255,255,255,.55)" transform="rotate(-30 40 20)"/>
+      ${bandana ? `<path d="M23 36q27 9 54 0l-1 9q-26 8-52 0z" fill="${color}"/><path d="M23 36q27 9 54 0" stroke="rgba(0,0,0,.25)" stroke-width="1.5" fill="none"/>
+        <g fill="#fff" opacity=".7"><circle cx="33" cy="42" r="1.4"/><circle cx="44" cy="44" r="1.4"/><circle cx="56" cy="44" r="1.4"/><circle cx="67" cy="42" r="1.4"/></g>
+        <path d="M77 38l12-6-3 9 6 5-14-1z" fill="${color}"/><path d="M77 38l12-6-3 9" stroke="rgba(0,0,0,.25)" stroke-width="1" fill="none"/>` : ''}
+      ${chain ? `<path d="M31 62q19 30 38 0" stroke="#F6C445" stroke-width="3.2" fill="none" stroke-dasharray="3.2 1.8" stroke-linecap="round"/>
+        <path d="M31 62q19 30 38 0" stroke="#a87a10" stroke-width="1" fill="none" stroke-dasharray="3.2 1.8" transform="translate(0 1.2)"/>
+        <rect x="44" y="76" width="12" height="13" rx="2.5" fill="#F6C445" stroke="#a87a10" stroke-width="1.2"/><path d="M47 83h6" stroke="#a87a10" stroke-width="1.6"/>` : ''}`;
+  }
+  $('mascot').innerHTML = micSvg('#EF5B54', { chain: true, bandana: true });
+
+  // ---------- Beat pickers ----------
+
+  const BEAT_ICONS = { trap: '🔥', boombap: '📻' };
+  const BEAT_BLURB = { trap: 'half-time, rattling hats', boombap: 'dusty, swung, crackly' };
+  const beatLabel = (beat, bpm) => `${Beats.CATALOGUE[beat].name} · ${bpm || Beats.CATALOGUE[beat].bpm} BPM`;
+  document.querySelectorAll('.beat-picker').forEach((picker) => {
+    picker.replaceChildren(...Object.keys(Beats.CATALOGUE).map((beat) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'beat-option';
+      b.dataset.beat = beat;
+      b.setAttribute('role', 'radio');
+      b.innerHTML = `<span class="beat-icon" aria-hidden="true">${BEAT_ICONS[beat] || '🎵'}</span>${esc(beatLabel(beat))}<small>${BEAT_BLURB[beat] || ''}</small>`;
+      return b;
+    }));
+  });
+  let soloBeat = (() => { try { return Beats.CATALOGUE[localStorage.getItem('rapmates-beat')] ? localStorage.getItem('rapmates-beat') : 'trap'; } catch { return 'trap'; } })();
+  function showPicker(picker, beat, enabled) {
+    picker.querySelectorAll('.beat-option').forEach((btn) => {
+      const on = btn.dataset.beat === beat;
+      btn.classList.toggle('selected', on);
+      btn.setAttribute('aria-checked', String(on));
+      btn.disabled = !enabled;
+    });
+  }
+  const soloPicker = $('solo-view').querySelector('.beat-picker');
+  const roomPicker = $('room-view').querySelector('.beat-picker');
+  soloPicker.addEventListener('click', (e) => {
+    const btn = e.target.closest('.beat-option');
+    if (!btn) return;
+    soloBeat = btn.dataset.beat;
+    try { localStorage.setItem('rapmates-beat', soloBeat); } catch { /* private mode */ }
+    showPicker(soloPicker, soloBeat, true);
+  });
+  roomPicker.addEventListener('click', (e) => {
+    const btn = e.target.closest('.beat-option');
+    if (!btn || btn.disabled) return;
+    try { localStorage.setItem('rapmates-beat', btn.dataset.beat); } catch { /* private mode */ }
+    net.emit('setBeat', btn.dataset.beat);
+  });
+  showPicker(soloPicker, soloBeat, true);
+
+  // ---------- Lobby UI ----------
+
+  function showError(msg) {
+    $('error-msg').textContent = msg || '';
+  }
+
+  const isHost = () => state.playerId && state.playerId === state.hostId;
+  const me = () => [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.playerId);
+  const PREVIEW = { id: 'preview', number: 1, name: 'You', color: '#EF5B54' };
+
+  function buildSlots() {
+    $('slots').replaceChildren(...[1, 2, 3, 4].map((n) => {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.innerHTML = `<span class="slot-num">P${n}</span><svg class="avatar" viewBox="0 0 100 120" aria-hidden="true"></svg>`
+        + '<span class="slot-name"></span><span class="slot-tag"></span>';
+      return slot;
+    }));
+  }
+
+  function renderSlots() {
+    const players = state.playerId ? state.lobby.players : [PREVIEW];
+    [...$('slots').children].forEach((slot, i) => {
+      const p = players.find((pl) => pl.number === i + 1);
+      const isYou = p && (p.id === state.playerId || p === PREVIEW);
+      const key = p ? `${p.id}|${p.name}` : '';
+      if (slot.dataset.key === key) {
+        slot.querySelector('.slot-tag').textContent = slotTag(p, isYou);
+        return;
+      }
+      slot.dataset.key = key;
+      slot.classList.toggle('filled', !!p);
+      slot.classList.toggle('you', !!isYou);
+      slot.style.setProperty('--pc', p ? p.color : '#ccc');
+      slot.querySelector('.avatar').innerHTML = p ? micSvg(p.color) : '<circle cx="50" cy="40" r="26" fill="none" stroke="#d9d9d9" stroke-width="3" stroke-dasharray="6 6"/>';
+      slot.querySelector('.slot-name').textContent = p ? p.name : 'Open mic';
+      slot.querySelector('.slot-tag').textContent = slotTag(p, isYou);
+    });
+    const crowd = state.lobby.crowd;
+    $('crowd-line').hidden = !state.playerId || !crowd.length;
+    $('crowd-line').innerHTML = `<b>Crowd: ${crowd.length}</b> `
+      + crowd.map((m) => `<span class="chip${m.id === state.playerId ? ' you' : ''}">${esc(m.name)}${m.id === state.playerId ? ' (you)' : ''}${!state.linkRoom && m.id === state.hostId ? ' · host' : ''}</span>`).join('');
+  }
+  function slotTag(p, isYou) {
+    if (!p || p === PREVIEW) return '';
+    return [isYou && 'YOU', !state.linkRoom && p.id === state.hostId && 'HOST'].filter(Boolean).join(' · ');
+  }
+
+  function applyLobby(payload) {
+    state.hostId = payload.hostId;
+    state.lobby = { players: payload.players || [], crowd: payload.crowd || [], beat: payload.beat || 'trap', started: !!payload.started };
+    $('setup-view').style.display = 'none';
+    $('solo-view').style.display = 'none';
+    $('room-view').style.display = 'block';
+    $('room-code-txt').textContent = payload.roomCode;
+    $('lobby-card').classList.toggle('link-room', state.linkRoom);
+    renderSlots();
+    showPicker(roomPicker, state.lobby.beat, isHost() && !state.lobby.started);
+    const count = state.lobby.players.length;
+    const host = [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.hostId);
+    $('start-btn').textContent = `Start game with ${count} player${count === 1 ? '' : 's'}`;
+    $('start-btn').style.display = isHost() && !state.lobby.started ? 'block' : 'none';
+    $('rejoin-btn').style.display = state.lobby.started && state.away ? 'block' : 'none';
+    let wait = '';
+    if (state.lobby.started) wait = state.away ? 'A game is on right now.' : '';
+    else if (!isHost()) wait = `Waiting for ${host ? host.name : 'the host'} to pick the beat and start...`;
+    if (!state.lobby.started && me() && me().role === 'crowd') wait = `You're in the crowd: watch the rappers and vote! ${wait}`;
+    $('wait-msg').textContent = wait;
+    $('room-code-txt').classList.toggle('long', payload.roomCode.length > 6);
+    $('share-link').value = shareLink(payload.roomCode);
+    history.replaceState(null, '', `${basePath()}?room=${encodeURIComponent(payload.roomCode.toLowerCase())}`);
+    if (state.game) renderChips();
+    updateResultsButtons();
+  }
+
+  function showLobby() {
+    stopStage();
+    $('game-view').style.display = 'none';
+    $('lobby-card').style.display = 'block';
+    document.body.classList.remove('in-game');
+  }
+
+  function enterGame() {
+    $('lobby-card').style.display = 'none';
+    $('game-view').style.display = 'flex';
+    document.body.classList.add('in-game');
+  }
+
+  // Directory the game is served from, e.g. "/rapmates/" on GitHub Pages or "/" locally.
+  function basePath() {
+    return location.pathname.replace(/[^/]*$/, '');
+  }
+
+  function shareLink(roomCode) {
+    return `${location.origin}${basePath()}${roomCode.toLowerCase()}`;
+  }
+
+  function resetToSetup() {
+    history.replaceState(null, '', basePath());
+    state.linkRoom = false;
+    $('lobby-card').classList.remove('link-room');
+    state.playerId = null;
+    state.hostId = null;
+    state.lobby = { players: [], crowd: [], beat: 'trap', started: false };
+    state.game = null;
+    state.phase = null;
+    state.away = false;
+    renderSlots();
+    $('room-view').style.display = 'none';
+    $('solo-view').style.display = 'none';
+    $('setup-view').style.display = 'block';
+    showLobby();
+  }
+
+  function setConnecting(connecting) {
+    if (connecting) showError('');
+    $('connecting-hint').textContent = 'Connecting...';
+    $('connecting-hint').style.display = connecting ? 'block' : 'none';
+  }
+
+  function handleJoinResponse(res) {
+    setConnecting(false);
+    if (!res.ok) {
+      if (state.linkRoom || $('room-view').style.display === 'block') resetToSetup();
+      return showError(res.error);
+    }
+    showError('');
+    state.playerId = res.playerId;
+    applyLobby(res);
+  }
+
+  $('create-btn').addEventListener('click', () => {
+    setConnecting(true);
+    net.emit('createRoom', handleJoinResponse);
+  });
+  $('join-btn').addEventListener('click', () => {
+    const code = $('room-input').value.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(code)) return showError('Enter a 4-letter room code.');
+    setConnecting(true);
+    net.emit('joinRoom', code, handleJoinResponse);
+  });
+  $('room-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('join-btn').click();
+  });
+  $('solo-btn').addEventListener('click', () => {
+    showError('');
+    $('setup-view').style.display = 'none';
+    $('solo-view').style.display = 'block';
+  });
+  $('solo-back-btn').addEventListener('click', () => {
+    $('solo-view').style.display = 'none';
+    $('setup-view').style.display = 'block';
+  });
+  $('solo-go-btn').addEventListener('click', () => startSolo());
+
+  $('start-btn').addEventListener('click', () => {
+    getAudioCtx();
+    const beat = state.lobby.beat;
+    net.emit('startGame', { beat, bpm: Beats.CATALOGUE[beat].bpm });
+  });
+  $('again-btn').addEventListener('click', () => {
+    getAudioCtx();
+    const beat = state.lobby.beat;
+    net.emit('startGame', { beat, bpm: Beats.CATALOGUE[beat].bpm });
+  });
+  $('rejoin-btn').addEventListener('click', () => {
+    getAudioCtx();
+    state.away = false;
+    $('rejoin-btn').style.display = 'none';
+    enterGame();
+    renderChips();
+    if (state.phase) applyPhase(state.phase, true);
+  });
+  $('leave-btn').addEventListener('click', () => {
+    net.emit('leaveRoom');
+    resetToSetup();
+  });
+  $('exit-btn').addEventListener('click', () => {
+    state.over = null;
+    showLobby();
+    applyLobby({ ...state.lobby, hostId: state.hostId, roomCode: $('room-code-txt').textContent });
+  });
+
+  // Home: solo goes back to the home screen; in a room, just you go back to the lobby (still in the
+  // room, the show goes on without you until you press "Back to the show").
+  $('game-home').addEventListener('click', () => {
+    if (state.solo) return exitSolo();
+    state.away = !!state.lobby.started;
+    showLobby();
+    $('rejoin-btn').style.display = state.away ? 'block' : 'none';
+  });
+  // Link rooms: leave and go back to the home screen to create or join a different room.
+  $('home-btn').addEventListener('click', () => {
+    net.emit('leaveRoom');
+    resetToSetup();
+  });
+
+  net.on('lobbyUpdate', (payload) => applyLobby(payload));
+  net.on('disconnect', (reason) => {
+    resetToSetup();
+    showError(reason || 'Disconnected.');
+  });
+  net.on('status', (text) => {
+    if ($('connecting-hint').style.display === 'block') $('connecting-hint').textContent = text;
+    if ($('reconnect-hint').style.display === 'block') $('reconnect-hint').textContent = text;
+  });
+  net.on('reconnecting', (message) => {
+    state.game = null;
+    state.phase = null;
+    state.away = false;
+    showLobby();
+    $('start-btn').style.display = 'none';
+    $('rejoin-btn').style.display = 'none';
+    showError('');
+    $('reconnect-hint').textContent = message;
+    $('reconnect-hint').style.display = 'block';
+  });
+  net.on('rejoined', (res) => {
+    $('reconnect-hint').style.display = 'none';
+    handleJoinResponse(res);
+  });
+
+  $('copy-btn').addEventListener('click', async () => {
+    const input = $('share-link');
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch {
+      input.select();
+      document.execCommand('copy');
+    }
+    $('copy-btn').textContent = 'Copied!';
+    setTimeout(() => { $('copy-btn').textContent = 'Copy link'; }, 1500);
+  });
+
+  // Apps that embed the game pass their own session id as ?group=<id> (any length or characters), so each
+  // group gets its own link room instead of everyone sharing /mate. The id is hashed into a 4-letter code
+  // like any other room (same letters, no I or O), so it can also be typed in to join.
+  const GROUP_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  function groupRoom(id) {
+    if (!id) return null;
+    let h1 = 0xdeadbeef;
+    let h2 = 0x41c6ce57;
+    for (let i = 0; i < id.length; i++) {
+      const ch = id.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    let hash = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+      code += GROUP_LETTERS[hash % GROUP_LETTERS.length];
+      hash = Math.floor(hash / GROUP_LETTERS.length);
+    }
+    return code;
+  }
+  // Links like /rapmates/mate (or ?room=mate) open that room: join it if someone is hosting, otherwise host it.
+  function enterRoomFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('room') || groupRoom(params.get('group'));
+    if (!requested) return;
+    if (!window.RapmatesNet.normaliseRoomName(requested)) {
+      history.replaceState(null, '', basePath());
+      return showError('Room names are 2-16 letters, numbers or dashes.');
+    }
+    state.linkRoom = true;
+    $('lobby-card').classList.add('link-room');
+    setConnecting(true);
+    net.emit('enterRoom', requested, handleJoinResponse);
+  }
+
+  // ---------- Game: phases from the host ----------
+
+  net.on('gameStarted', (payload) => {
+    state.away = false;
+    state.over = null;
+    state.game = { round: payload.round, beat: payload.beat, bpm: payload.bpm, order: payload.order, results: payload.results || [] };
+    applyLobby(payload);
+    $('reconnect-hint').style.display = 'none';
+    enterGame();
+    renderChips();
+    applyPhase(payload);
+  });
+
+  net.on('phase', (p) => {
+    if (!state.game) return;
+    if (p.phase === 'score' && p.result && !state.game.results.some((r) => r.id === p.result.id)) state.game.results.push(p.result);
+    applyPhase(p);
+  });
+
+  net.on('votes', (v) => {
+    if (!state.phase || state.phase.phase !== 'vote' || v.turnIndex !== state.phase.turnIndex) return;
+    state.phase.votes = v;
+    renderVoteCount();
+  });
+
+  net.on('gameOver', (over) => {
+    state.over = over;
+    state.phase = { phase: 'results' };
+    state.lobby.started = false;
+    if (state.away || state.solo) return;
+    showResults(over);
+  });
+
+  function hideOverlays() {
+    document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
+  }
+
+  const sameTurn = (a, b) => a && b && a.rapperId === b.rapperId && a.startAt === b.startAt;
+
+  function applyPhase(p, force = false) {
+    state.phase = p;
+    if (state.away || state.solo) return;
+    if (p.phase === 'results') {
+      if (state.over) showResults(state.over);
+      return;
+    }
+    if (p.turn && (force || !sameTurn(stage.turn, p.turn))) {
+      setupTurn(p.turn, { bpm: state.game.bpm, beat: state.game.beat, solo: false });
+    }
+    renderChips();
+    hideOverlays();
+    if (p.phase === 'vote') showVote(p);
+    else if (p.phase === 'score') showScore(p);
+  }
+
+  function renderChips() {
+    const chips = $('chips');
+    if (state.solo || !state.game) {
+      chips.replaceChildren();
+      return;
+    }
+    const rapperId = state.phase && state.phase.turn && state.phase.phase !== 'results' ? state.phase.turn.rapperId : null;
+    const players = state.lobby.players;
+    chips.replaceChildren(...players.map((p) => {
+      const chip = document.createElement('div');
+      chip.className = `chip-p${p.id === rapperId ? ' on-mic' : ''}`;
+      chip.style.setProperty('--pc', p.color);
+      const r = state.game.results.find((x) => x.id === p.id);
+      const score = r ? (r.average === null ? '–' : `${r.average.toFixed(1)}★`) : '';
+      chip.innerHTML = `<span class="dot">P${p.number}</span><span class="name">${esc(p.name)}${p.id === state.playerId ? ' (you)' : ''}</span>${score ? `<span class="score">${score}</span>` : ''}`;
+      return chip;
+    }));
+    const crowd = state.lobby.crowd.length;
+    if (crowd) {
+      const chip = document.createElement('div');
+      chip.className = 'chip-p';
+      chip.style.setProperty('--pc', '#8a8a8a');
+      chip.innerHTML = `<span class="dot">👥</span><span>Crowd: ${crowd}</span>`;
+      chips.append(chip);
+    }
+  }
+
+  // ---------- Voting ----------
+
+  const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.9 6.2 6.8.8-5 4.7 1.3 6.7L12 17.3l-6 3.3 1.3-6.7-5-4.7 6.8-.8z" fill="currentColor" stroke="rgba(0,0,0,.12)" stroke-width="1" stroke-linejoin="round"/></svg>';
+  $('stars').replaceChildren(...[1, 2, 3, 4, 5].map((n) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'star';
+    b.dataset.n = n;
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-label', `${n} star${n > 1 ? 's' : ''}`);
+    b.innerHTML = STAR_SVG;
+    b.addEventListener('click', () => pickStars(n));
+    return b;
+  }));
+  function pickStars(n) {
+    if (state.voted) return;
+    state.myVote = n;
+    document.querySelectorAll('.star').forEach((s) => {
+      const on = Number(s.dataset.n) <= n;
+      s.classList.toggle('on', on);
+      s.classList.remove('pop');
+      if (on) { void s.offsetWidth; s.classList.add('pop'); }
+      s.setAttribute('aria-checked', String(Number(s.dataset.n) === n));
+    });
+    $('vote-btn').disabled = false;
+    playSfx('star', n);
+  }
+  $('vote-btn').addEventListener('click', () => {
+    if (!state.myVote || state.voted || !state.phase || state.phase.phase !== 'vote') return;
+    state.voted = true;
+    net.emit('input', { type: 'vote', stars: state.myVote, turn: state.phase.turnIndex });
+    playSfx('submit');
+    renderVoteState();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (!$('vote-overlay').classList.contains('show') || e.target.tagName === 'INPUT') return;
+    if (/^[1-5]$/.test(e.key)) pickStars(Number(e.key));
+    else if (e.key === 'Enter' && !$('vote-btn').disabled) $('vote-btn').click();
+  });
+
+  function showVote(p) {
+    const isRapper = p.turn.rapperId === state.playerId;
+    const isNewVote = state.voteTurn !== `${state.game.round}:${p.turnIndex}`;
+    if (isNewVote) {
+      state.voteTurn = `${state.game.round}:${p.turnIndex}`;
+      state.myVote = 0;
+      state.voted = false;
+      document.querySelectorAll('.star').forEach((s) => s.classList.remove('on', 'pop'));
+      $('vote-btn').disabled = true;
+      playSfx('ding');
+    }
+    if (p.votes && p.votes.voted.includes(state.playerId)) state.voted = true;
+    $('vote-title').textContent = isRapper ? 'The crowd is rating your bars...' : `How were ${p.turn.name}'s bars?`;
+    $('vote-title').style.color = p.turn.color;
+    $('vote-stars-wrap').style.display = isRapper ? 'none' : 'block';
+    renderVoteState();
+    renderVoteCount();
+    $('vote-overlay').classList.add('show');
+  }
+  function renderVoteState() {
+    const p = state.phase;
+    if (!p || !p.turn) return;
+    const isRapper = p.turn.rapperId === state.playerId;
+    let msg = 'Tap the stars (or press 1-5), then submit.';
+    if (isRapper) msg = 'Nice bars! Sit tight.';
+    else if (state.voted) msg = 'Vote in! Waiting for everyone else...';
+    $('vote-msg').textContent = msg;
+    $('vote-btn').textContent = state.voted ? 'Submitted ✓' : 'Submit';
+    if (state.voted) $('vote-btn').disabled = true;
+  }
+  function renderVoteCount() {
+    const v = state.phase && state.phase.votes;
+    if (!v) return;
+    $('vote-count').textContent = `${v.count} of ${v.needed} voted`;
+  }
+
+  function starsText(avg) {
+    const full = Math.round(avg || 0);
+    return `${'★'.repeat(full)}<span class="dim">${'★'.repeat(5 - full)}</span>`;
+  }
+
+  function showScore(p) {
+    const r = p.result;
+    if (!r) return;
+    $('score-name').textContent = r.id === state.playerId ? 'You' : r.name;
+    $('score-name').style.color = r.color;
+    $('score-num').textContent = r.average === null ? '–' : r.average.toFixed(1);
+    $('score-stars').innerHTML = starsText(r.average);
+    $('score-votes').textContent = r.votes ? `from ${r.votes} vote${r.votes === 1 ? '' : 's'}` : 'No votes this time';
+    $('score-overlay').classList.add('show');
+    if (state.scoreShown !== `${state.game.round}:${p.turnIndex}`) {
+      state.scoreShown = `${state.game.round}:${p.turnIndex}`;
+      playSfx('cheer', r.average || 1);
+    }
+  }
+
+  // ---------- Results ----------
+
+  function updateResultsButtons() {
+    $('again-btn').style.display = isHost() ? 'block' : 'none';
+    const host = [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.hostId);
+    $('results-wait').textContent = isHost() ? '' : `${host ? host.name : 'The host'} can start another round.`;
+  }
+
+  function showResults({ standings, winnerIds }) {
+    stopStage();
+    hideOverlays();
+    const winners = standings.filter((r) => winnerIds.includes(r.id));
+    const nameOf = (r) => (r.id === state.playerId ? 'You' : r.name);
+    let title = 'No votes this time!';
+    if (winners.length === 1) title = winners[0].id === state.playerId ? 'You take the mic!' : `${winners[0].name} takes the mic!`;
+    else if (winners.length > 1) title = `It's a tie! ${winners.map(nameOf).join(' & ')} share the mic!`;
+    $('results-title').textContent = title;
+    // Places: ties share a place.
+    const places = standings.map((r, i) => (i && r.average === standings[i - 1].average ? null : i + 1));
+    for (let i = 1; i < places.length; i++) if (places[i] === null) places[i] = places[i - 1];
+    const ranked = standings.map((r, i) => ({ ...r, place: places[i] }));
+    const display = ranked.length >= 2 ? [ranked[1], ranked[0], ...ranked.slice(2)] : ranked;
+    const HEIGHTS = { 1: 150, 2: 112, 3: 84, 4: 62 };
+    $('podium').replaceChildren(...display.map((r, i) => {
+      const step = document.createElement('div');
+      step.className = 'step';
+      step.style.setProperty('--pc', r.color);
+      step.style.animationDelay = `${0.15 * (display.length - i)}s`;
+      step.innerHTML = `<svg class="avatar" viewBox="0 0 100 120" aria-hidden="true">${micSvg(r.color, { chain: r.place === 1 })}</svg>`
+        + `<span class="who">${esc(nameOf(r))}</span>`
+        + `<div class="block" style="height:${HEIGHTS[r.place] || 60}px"><span class="place">${r.place}</span>`
+        + `<span class="avg">${r.average === null ? 'no votes' : `${r.average.toFixed(1)} ★`}</span></div>`;
+      return step;
+    }));
+    updateResultsButtons();
+    $('results-overlay').classList.add('show');
+    if (winners.length) confetti();
+    playSfx('airhorn');
+  }
+
+  function confetti() {
+    const box = $('confetti');
+    const colours = ['#EF5B54', '#F29D38', '#F6C445', '#52ACF0', '#4796D1', '#61A532', '#8BC540', '#F7D19A'];
+    for (let i = 0; i < 140; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetto';
+      c.style.left = `${Math.random() * 100}%`;
+      c.style.background = colours[i % colours.length];
+      c.style.setProperty('--dx', `${(Math.random() - 0.5) * 300}px`);
+      c.style.setProperty('--rot', `${Math.random() * 1440 - 720}deg`);
+      c.style.animationDuration = `${2.4 + Math.random() * 2.2}s`;
+      c.style.animationDelay = `${Math.random() * 0.8}s`;
+      if (Math.random() < 0.4) { c.style.width = '8px'; c.style.height = '8px'; c.style.borderRadius = '50%'; }
+      box.append(c);
+    }
+    setTimeout(() => box.replaceChildren(), 5600);
+  }
+
+  // ---------- Solo practice ----------
+
+  function startSolo() {
+    getAudioCtx();
+    const names = Engine.RAP_NAMES;
+    state.solo = state.solo || { name: names[Math.floor(Math.random() * names.length)] };
+    state.solo.beat = soloBeat;
+    const bpm = Beats.CATALOGUE[soloBeat].bpm;
+    const startAt = localNow() + SOLO_LEAD_MS;
+    const turn = { rapperId: 'solo', name: state.solo.name, color: '#F29D38', startAt, endAt: startAt + Engine.turnLengthMs(bpm), pairs: Words.drawPairs() };
+    showError('');
+    enterGame();
+    renderChips();
+    hideOverlays();
+    setupTurn(turn, { bpm, beat: soloBeat, solo: true });
+  }
+  function exitSolo() {
+    state.solo = null;
+    showLobby();
+    $('solo-view').style.display = 'none';
+    $('setup-view').style.display = 'block';
+  }
+  $('solo-again-btn').addEventListener('click', () => startSolo());
+  $('solo-change-btn').addEventListener('click', () => {
+    exitSolo();
+    $('setup-view').style.display = 'none';
+    $('solo-view').style.display = 'block';
+  });
+
+  // ---------- The stage: bars, count-in and the bouncing ball ----------
+  // Everything is driven by the turn's start time. The beat is scheduled on the audio clock at that
+  // moment; the ball and the bars read the audio clock every frame, so they stay tight to the beat.
+
+  const stage = {
+    turn: null,
+    bars: [],
+    rows: [],
+    ghost: null,
+    beatKind: 'trap',
+    bpm: 130,
+    beatSec: 60 / 130,
+    solo: false,
+    beat: null,
+    audioStart: null, // audio time of the count-in's first beat
+    anchoredOffset: 0,
+    currentBar: -1,
+    lastBeat: null,
+    countShown: null,
+    geometry: null,
+    trail: [],
+    raf: null,
+    soloDone: false,
+  };
+  const canvas = $('ball-canvas');
+  const cctx = canvas.getContext('2d');
+
+  function offsetMs() {
+    return stage.solo ? 0 : net.clockOffset;
+  }
+  // The turn's start in this browser's clock.
+  const localStartMs = () => stage.turn.startAt - offsetMs();
+
+  function makeRow(bar, ghost = false) {
+    const row = document.createElement('div');
+    row.className = `bar-row ${bar.couplet % 2 ? 'couplet-b' : 'couplet-a'}${ghost ? ' ghost' : ''}`;
+    row.innerHTML = `<span class="bar-num">${bar.index + 1}</span><div class="cell"></div><div class="cell"></div><div class="cell"></div>`
+      + `<div class="cell word"><span style="--len:${bar.word.length}">${esc(bar.word)}</span></div>`;
+    return row;
+  }
+
+  function setupTurn(turn, { bpm, beat, solo }) {
+    stopStage();
+    stage.turn = turn;
+    stage.solo = solo;
+    stage.bpm = bpm;
+    stage.beatSec = 60 / bpm;
+    stage.beatKind = beat;
+    stage.bars = Words.buildBars(turn.pairs);
+    stage.currentBar = -1;
+    stage.lastBeat = null;
+    stage.countShown = null;
+    stage.trail = [];
+    stage.soloDone = false;
+    stage.ended = false;
+    const barsEl = $('bars');
+    stage.rows = stage.bars.map((b) => makeRow(b));
+    stage.ghost = makeRow(stage.bars[0], true);
+    barsEl.replaceChildren(stage.ghost, ...stage.rows);
+    stage.rows.forEach((row) => { row.style.transition = 'none'; });
+    updateRows(0);
+    void barsEl.offsetWidth;
+    stage.rows.forEach((row) => { row.style.transition = ''; });
+    $('mic-drop').style.display = 'none';
+    $('count').className = 'count';
+    const isMe = solo || turn.rapperId === state.playerId;
+    const micName = $('mic-name');
+    micName.style.setProperty('--pc', turn.color);
+    micName.innerHTML = `<small>On the mic</small>${esc(isMe ? `${turn.name} (you)` : turn.name)}`;
+    $('ready-kicker').textContent = isMe ? "It's your turn!" : 'Get ready';
+    $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
+    $('ready-name').textContent = isMe ? 'You' : turn.name;
+    $('ready-name').style.setProperty('--pc', turn.color);
+    $('ready-line').textContent = isMe ? 'are on the mic' : 'is on the mic';
+    $('ready-beat').textContent = beatLabel(beat, bpm);
+    $('game-hint').textContent = isMe
+      ? 'Rap along to the beat. Land the word in the 4th box right when the ball hits it.'
+      : `Watch ${turn.name} land each rhyme on the 4th beat. You'll rate their bars after 16 bars.`;
+    stage.geometry = null;
+    anchorAudio();
+    stage.raf = requestAnimationFrame(frame);
+  }
+
+  function stopStage() {
+    if (stage.raf) cancelAnimationFrame(stage.raf);
+    stage.raf = null;
+    if (stage.beat) stage.beat.dispose();
+    stage.beat = null;
+    stage.turn = null;
+    stage.audioStart = null;
+    hideOverlays();
+    updateNudge();
+  }
+
+  // Schedules this turn's beat and count-in on the audio clock. Called again if the audio only starts
+  // later (the browser needed a tap) or the clock estimate improves; the beat picks up part-way.
+  function anchorAudio() {
+    if (stage.beat) stage.beat.stop(0, true);
+    stage.beat = null;
+    stage.audioStart = null;
+    stage.anchoredOffset = offsetMs();
+    const a = getAudioCtx();
+    updateNudge();
+    if (!a || a.state !== 'running' || !stage.turn) return;
+    const lead = (localStartMs() - localNow()) / 1000;
+    stage.audioStart = audioNow() + lead;
+    // audioNow() is what's coming out of the speakers; schedule ahead by the output latency so the
+    // beat is heard right on time.
+    const outLatency = a.currentTime - audioNow();
+    const start = stage.audioStart + Math.max(0, outLatency);
+    const end = start + (COUNT_IN + TOTAL_BEATS) * stage.beatSec;
+    if (a.currentTime >= end) return;
+    stage.beat = Beats.createBeat(a, musicGain, stage.beatKind);
+    stage.beat.start(start);
+    stage.beat.stop(end, false, 0.6);
+    for (let i = 0; i < COUNT_IN; i++) {
+      const t = start + i * stage.beatSec;
+      if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
+    }
+  }
+
+  // Beats since bar 1 started (negative during the count-in).
+  function beatPos() {
+    if (stage.audioStart !== null && ac && ac.state === 'running') {
+      return (audioNow() - stage.audioStart) / stage.beatSec - COUNT_IN;
+    }
+    return (localNow() - localStartMs()) / (stage.beatSec * 1000) - COUNT_IN;
+  }
+
+  function updateNudge() {
+    const need = !!stage.turn && (!ac || ac.state !== 'running') && $('game-view').style.display === 'flex';
+    $('sound-nudge').classList.toggle('show', need);
+  }
+  $('sound-nudge').addEventListener('click', () => {
+    const a = getAudioCtx();
+    if (a) a.resume().then(() => { if (stage.turn) anchorAudio(); updateNudge(); });
+  });
+
+  // Row k places: 0 is the current bar at the top, 1-3 are coming up, below that they're hidden,
+  // and finished bars slide up and fade away.
+  function updateRows(bar) {
+    stage.currentBar = bar;
+    stage.rows.forEach((row, i) => {
+      const k = i - bar;
+      row.classList.toggle('current', k === 0);
+      row.classList.toggle('next', k >= 1 && k <= 2);
+      row.classList.toggle('far', k >= 3);
+      let y = `calc(${k} * (100% + var(--row-gap)))`;
+      let scale = k === 0 ? 1 : 0.96;
+      let opacity = k < 0 ? 0 : k <= 3 ? [1, 0.85, 0.6, 0.35][k] : 0;
+      if (k < 0) {
+        y = `calc(-100% - var(--row-gap) * 2)`;
+        scale = 0.9;
+      }
+      row.style.transform = `translateY(${y}) scale(${scale})`;
+      row.style.opacity = opacity;
+      if (k !== 0) row.querySelectorAll('.cell').forEach((c) => c.classList.remove('hit'));
+    });
+  }
+
+  // Where the four beat cells of the top row are, in canvas pixels (measured on an invisible copy of
+  // the top row, so the sliding animation doesn't throw it off).
+  function measure() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    if (!w || !h) return null;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    const crect = canvas.getBoundingClientRect();
+    const sx = w / crect.width;
+    const sy = h / crect.height;
+    const cells = [...stage.ghost.querySelectorAll('.cell')];
+    const rects = cells.map((c) => c.getBoundingClientRect());
+    const cx = rects.map((r) => (r.left + r.width / 2 - crect.left) * sx);
+    const top = (rects[0].top - crect.top) * sy;
+    const rowH = rects[0].height * sy;
+    const r = Math.max(9, Math.min(22, rowH * 0.17));
+    stage.geometry = { dpr, w, h, cx, top, rowH, r, arc: Math.min(top - r * 1.5, rowH * 0.85) };
+    return stage.geometry;
+  }
+  window.addEventListener('resize', () => { stage.geometry = null; });
+
+  function ballAt(p) {
+    const g = stage.geometry;
+    const land = g.top - g.r;
+    if (p < -COUNT_IN) return null;
+    if (p < 0) {
+      // Count-in: bounce on the spot over the first cell.
+      const f = p - Math.floor(p);
+      return { x: g.cx[0], y: land - g.arc * 0.6 * 4 * f * (1 - f), f, alpha: 1 };
+    }
+    if (p >= TOTAL_BEATS - 1) {
+      // The last word: rest on it and fade.
+      const fade = Math.max(0, 1 - (p - (TOTAL_BEATS - 1)) / 1.5);
+      return fade > 0 ? { x: g.cx[3], y: land, f: 0, alpha: fade } : null;
+    }
+    const b = Math.floor(p);
+    const f = p - b;
+    const from = b % BPB;
+    const to = (b + 1) % BPB;
+    const arc = to === 0 ? g.arc * 1.2 : g.arc;
+    return { x: g.cx[from] + (g.cx[to] - g.cx[from]) * f, y: land - arc * 4 * f * (1 - f), f, alpha: 1 };
+  }
+
+  function drawBall(p, now) {
+    const g = stage.geometry || measure();
+    if (!g) return;
+    cctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+    cctx.clearRect(0, 0, g.w, g.h);
+    const ball = ballAt(p);
+    stage.trail = stage.trail.filter((pt) => now - pt.t < 140);
+    if (!ball) return;
+    stage.trail.push({ x: ball.x, y: ball.y, t: now });
+    // Motion streak: a tapered, fading tail along the recent path.
+    const pts = stage.trail;
+    for (let i = 1; i < pts.length; i++) {
+      const k = i / pts.length;
+      cctx.strokeStyle = `rgba(82, 172, 240, ${0.5 * k * ball.alpha})`;
+      cctx.lineWidth = g.r * 2 * k;
+      cctx.lineCap = 'round';
+      cctx.beginPath();
+      cctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+      cctx.lineTo(pts[i].x, pts[i].y);
+      cctx.stroke();
+    }
+    // Squash on landing, stretch on take-off.
+    const near = Math.min(ball.f, 1 - ball.f);
+    const squash = near < 0.1 ? 1 - (0.1 - near) * 2.2 : 1;
+    cctx.save();
+    cctx.globalAlpha = ball.alpha;
+    cctx.translate(ball.x, ball.y + g.r);
+    cctx.scale(2 - squash, squash);
+    cctx.shadowColor = 'rgba(82, 172, 240, 0.9)';
+    cctx.shadowBlur = 22;
+    const grad = cctx.createRadialGradient(-g.r * 0.35, -g.r * 1.35, g.r * 0.15, 0, -g.r, g.r);
+    grad.addColorStop(0, '#d8eeff');
+    grad.addColorStop(0.35, '#52ACF0');
+    grad.addColorStop(1, '#2554A0');
+    cctx.fillStyle = grad;
+    cctx.beginPath();
+    cctx.arc(0, -g.r, g.r, 0, Math.PI * 2);
+    cctx.fill();
+    cctx.restore();
+  }
+
+  function frame(now) {
+    stage.raf = requestAnimationFrame(frame);
+    if (!stage.turn) return;
+    // A better clock estimate arrived mid-turn (e.g. just joined): line the beat up again.
+    if (!stage.solo && Math.abs(net.clockOffset - stage.anchoredOffset) > 40 && beatPos() < TOTAL_BEATS - 4) anchorAudio();
+    const p = beatPos();
+
+    $('ready-overlay').classList.toggle('show', p < -COUNT_IN && !$('vote-overlay').classList.contains('show') && !$('score-overlay').classList.contains('show'));
+
+    // Count-in: 3, 2, 1, GO! on the beat.
+    if (p >= -COUNT_IN && p < 0) {
+      const i = Math.floor(p) + COUNT_IN;
+      if (i !== stage.countShown) {
+        stage.countShown = i;
+        const el = $('count');
+        el.textContent = COUNT_WORDS[i];
+        el.className = `count${i === COUNT_IN - 1 ? ' go' : ''}`;
+        void el.offsetWidth;
+        el.classList.add('pop');
+        if (!stage.audioStart && ac && ac.state === 'running') sfx.count(ac.currentTime, i === COUNT_IN - 1);
+      }
+    }
+
+    const bar = p < 0 ? 0 : Math.min(BARS, Math.floor(p / BPB));
+    if (bar !== stage.currentBar) updateRows(bar);
+    const beatIdx = p < 0 ? null : Math.floor(p);
+    if (beatIdx !== stage.lastBeat && beatIdx !== null && beatIdx < TOTAL_BEATS) {
+      const row = stage.rows[bar];
+      const inBar = beatIdx % BPB;
+      if (row) {
+        const cells = row.querySelectorAll('.cell');
+        cells.forEach((c, j) => c.classList.toggle('lit', j <= inBar));
+        const hit = cells[inBar];
+        hit.classList.remove('hit');
+        void hit.offsetWidth;
+        hit.classList.add('hit');
+      }
+    }
+    stage.lastBeat = beatIdx;
+
+    $('bar-count').innerHTML = p < 0 ? 'Count-in' : p < TOTAL_BEATS ? `Bar <b>${bar + 1}</b> / ${BARS}` : `<b>${BARS}</b> / ${BARS}`;
+    const done = p >= TOTAL_BEATS;
+    if (done !== stage.ended) {
+      stage.ended = done;
+      $('mic-drop').style.display = done ? 'flex' : 'none';
+    }
+    drawBall(p, now);
+    const ph = state.phase;
+    if (ph && ph.phase === 'vote' && ph.voteEndsAt && $('vote-overlay').classList.contains('show')) {
+      const left = Math.max(0, Math.min(1, (ph.voteEndsAt - net.hostNow()) / (Engine.VOTE_SECONDS * 1000)));
+      $('vote-timer').style.transform = `scaleX(${left})`;
+    }
+    if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + 1.5) {
+      stage.soloDone = true;
+      $('solo-overlay').classList.add('show');
+      playSfx('cheer', 4);
+    }
+  }
+
+  // Debug aid: ?debug exposes the client state.
+  if (new URLSearchParams(location.search).has('debug')) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx };
+
+  buildSlots();
+  renderSlots();
+  enterRoomFromUrl();
+})();
