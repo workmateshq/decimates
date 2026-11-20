@@ -22,7 +22,8 @@
   const BEATS = { trap: { bpm: 130 }, boombap: { bpm: 90 } };
   const DEFAULT_BEAT = 'trap';
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
-  const PLAYER_COLORS = ['#EF5B54', '#4796D1', '#F29D38', '#61A532'];
+  // Moody accents; green is kept for the ball and finished beats.
+  const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8'];
   // Real rapper names, half men and half women, handed out at random (unique within a room).
   const MALE_NAMES = [
     'Gucci Mane', 'Drake', 'Biggie', 'Juicy J', 'Killer Mike', 'Quavo', 'Big Lurch', 'Violent J', 'Yung Lean',

@@ -224,7 +224,7 @@
         <path d="M31 62q19 30 38 0" stroke="#a87a10" stroke-width="1" fill="none" stroke-dasharray="3.2 1.8" transform="translate(0 1.2)"/>
         <rect x="44" y="76" width="12" height="13" rx="2.5" fill="#F6C445" stroke="#a87a10" stroke-width="1.2"/><path d="M47 83h6" stroke="#a87a10" stroke-width="1.6"/>` : ''}`;
   }
-  $('mascot').innerHTML = micSvg('#EF5B54', { chain: true, bandana: true });
+  $('mascot').innerHTML = micSvg('#E5484D', { chain: true, bandana: true });
 
   // ---------- Beat pickers ----------
 
@@ -276,7 +276,7 @@
 
   const isHost = () => state.playerId && state.playerId === state.hostId;
   const me = () => [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.playerId);
-  const PREVIEW = { id: 'preview', number: 1, name: 'You', color: '#EF5B54' };
+  const PREVIEW = { id: 'preview', number: 1, name: 'You', color: Engine.PLAYER_COLORS[0] };
 
   function buildSlots() {
     $('slots').replaceChildren(...[1, 2, 3, 4].map((n) => {
@@ -302,7 +302,7 @@
       slot.classList.toggle('filled', !!p);
       slot.classList.toggle('you', !!isYou);
       slot.style.setProperty('--pc', p ? p.color : '#ccc');
-      slot.querySelector('.avatar').innerHTML = p ? micSvg(p.color) : '<circle cx="50" cy="40" r="26" fill="none" stroke="#d9d9d9" stroke-width="3" stroke-dasharray="6 6"/>';
+      slot.querySelector('.avatar').innerHTML = p ? micSvg(p.color) : '<circle cx="50" cy="40" r="26" fill="none" stroke="#3a3835" stroke-width="2" stroke-dasharray="5 6"/>';
       slot.querySelector('.slot-name').textContent = p ? p.name : 'Open mic';
       slot.querySelector('.slot-tag').textContent = slotTag(p, isYou);
     });
@@ -760,7 +760,7 @@
 
   function confetti() {
     const box = $('confetti');
-    const colours = ['#EF5B54', '#F29D38', '#F6C445', '#52ACF0', '#4796D1', '#61A532', '#8BC540', '#F7D19A'];
+    const colours = ['#F6C445', '#F6C445', '#E5484D', '#F2EDE4', '#b9bec7', '#d9a92e'];
     for (let i = 0; i < 140; i++) {
       const c = document.createElement('div');
       c.className = 'confetto';
@@ -785,7 +785,7 @@
     state.solo.beat = soloBeat;
     const bpm = Beats.CATALOGUE[soloBeat].bpm;
     const startAt = localNow() + SOLO_LEAD_MS;
-    const turn = { rapperId: 'solo', name: state.solo.name, color: '#F29D38', startAt, endAt: startAt + Engine.turnLengthMs(bpm), pairs: Words.drawPairs() };
+    const turn = { rapperId: 'solo', name: state.solo.name, color: '#F6C445', startAt, endAt: startAt + Engine.turnLengthMs(bpm), pairs: Words.drawPairs() };
     showError('');
     enterGame();
     renderChips();
@@ -838,9 +838,25 @@
   // The turn's start in this browser's clock.
   const localStartMs = () => stage.turn.startAt - offsetMs();
 
+  // Each couplet (2 bars sharing a rhyme pair) gets its own colour, starting with blue. Green is kept
+  // for the ball and finished beats. [empty cell, its edge, word cell, its edge, word ink]
+  const COUPLET_COLOURS = [
+    ['#132840', '#0a1626', '#4E9BE0', '#2a5f93', '#06172a'], // blue
+    ['#3a2810', '#221706', '#F2A93B', '#a46b14', '#2a1a02'], // amber
+    ['#3a1434', '#220a1f', '#D45CB9', '#8d2f78', '#24061f'], // magenta
+    ['#0e3134', '#061d1f', '#3EBFB4', '#21807a', '#04211f'], // teal
+    ['#3e1416', '#250a0b', '#E5484D', '#9b2a2e', '#ffffff'], // red
+    ['#3a3010', '#231d07', '#F6C445', '#ad861a', '#2b2104'], // gold
+    ['#241a44', '#150f2a', '#9C7DEB', '#6447b0', '#140b2b'], // violet
+    ['#0d2e3d', '#061b25', '#4FC8EA', '#2787a6', '#03202b'], // cyan
+  ];
+
   function makeRow(bar, ghost = false) {
     const row = document.createElement('div');
-    row.className = `bar-row ${bar.couplet % 2 ? 'couplet-b' : 'couplet-a'}${ghost ? ' ghost' : ''}`;
+    row.className = `bar-row${ghost ? ' ghost' : ''}`;
+    const [cell, cellEdge, word, wordEdge, ink] = COUPLET_COLOURS[bar.couplet % COUPLET_COLOURS.length];
+    Object.entries({ '--cell': cell, '--cell-edge': cellEdge, '--word': word, '--word-edge': wordEdge, '--word-ink': ink })
+      .forEach(([k, v]) => row.style.setProperty(k, v));
     row.innerHTML = `<span class="bar-num">${bar.index + 1}</span><div class="cell"></div><div class="cell"></div><div class="cell"></div>`
       + `<div class="cell word"><span style="--len:${bar.word.length}">${esc(bar.word)}</span></div>`;
     return row;
@@ -985,7 +1001,7 @@
     const top = (rects[0].top - crect.top) * sy;
     const rowH = rects[0].height * sy;
     const r = Math.max(9, Math.min(22, rowH * 0.17));
-    stage.geometry = { dpr, w, h, cx, top, rowH, r, arc: Math.min(top - r * 1.5, rowH * 0.85) };
+    stage.geometry = { dpr, w, h, cx, top, rowH, r, arc: Math.min(top - r * 2.6, rowH * 0.85) };
     return stage.geometry;
   }
   window.addEventListener('resize', () => { stage.geometry = null; });
@@ -1025,7 +1041,7 @@
     const pts = stage.trail;
     for (let i = 1; i < pts.length; i++) {
       const k = i / pts.length;
-      cctx.strokeStyle = `rgba(82, 172, 240, ${0.5 * k * ball.alpha})`;
+      cctx.strokeStyle = `rgba(139, 197, 64, ${0.5 * k * ball.alpha})`;
       cctx.lineWidth = g.r * 2 * k;
       cctx.lineCap = 'round';
       cctx.beginPath();
@@ -1040,12 +1056,12 @@
     cctx.globalAlpha = ball.alpha;
     cctx.translate(ball.x, ball.y + g.r);
     cctx.scale(2 - squash, squash);
-    cctx.shadowColor = 'rgba(82, 172, 240, 0.9)';
+    cctx.shadowColor = 'rgba(139, 197, 64, 0.9)';
     cctx.shadowBlur = 22;
     const grad = cctx.createRadialGradient(-g.r * 0.35, -g.r * 1.35, g.r * 0.15, 0, -g.r, g.r);
-    grad.addColorStop(0, '#d8eeff');
-    grad.addColorStop(0.35, '#52ACF0');
-    grad.addColorStop(1, '#2554A0');
+    grad.addColorStop(0, '#eaffd0');
+    grad.addColorStop(0.35, '#8BC540');
+    grad.addColorStop(1, '#3b6d1c');
     cctx.fillStyle = grad;
     cctx.beginPath();
     cctx.arc(0, -g.r, g.r, 0, Math.PI * 2);
