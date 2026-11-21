@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PAIRS, buildBars, drawPairs, shuffledIndexes, BARS_PER_TURN, PAIRS_PER_TURN } = require('../public/words.js');
+const { PAIRS, buildBars, drawPairs, shuffledIndexes, BARS_PER_TURN, PAIRS_PER_TURN } = require('../public/js/words.js');
 
 test('there are 60 rhyming pairs', () => {
   assert.equal(PAIRS.length, 60);

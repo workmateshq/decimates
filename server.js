@@ -1,4 +1,4 @@
-// Local static server. The game itself runs peer-to-peer in the host's browser (see public/net.js),
+// Local static server. The game itself runs peer-to-peer in the host's browser (see public/js/net.js),
 // so any static host works, including GitHub Pages.
 const path = require('path');
 const express = require('express');

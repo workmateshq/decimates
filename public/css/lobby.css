@@ -1,0 +1,48 @@
+/* Rapmates: the lobby (rapper slots, crowd, game mode, room code). */
+/* ---------- Lobby ---------- */
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.slot {
+  border: 1px dashed #333; border-radius: var(--radius); padding: 8px 4px 10px; min-height: 138px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+  color: #5c5a56; background: rgba(0, 0, 0, 0.35); position: relative; overflow: hidden;
+}
+.slot.filled { border: 1px solid color-mix(in srgb, var(--pc) 55%, #000); background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 16%, #121212), #111); color: var(--ink); animation: pop-in 0.3s ease-out; }
+.slot.filled::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--pc); }
+.slot .slot-num { font-size: 11px; color: #6b6862; letter-spacing: 2px; }
+.slot.filled .slot-num { color: var(--pc); }
+.slot .avatar { width: 52px; height: 62px; }
+.slot .slot-name { font-family: var(--street); font-size: 16px; line-height: 1.05; text-align: center; padding: 0 2px; overflow-wrap: anywhere; }
+.slot .slot-tag { font-size: 10px; color: var(--gold); letter-spacing: 1.5px; min-height: 14px; }
+@keyframes pop-in { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.crowd { font-size: 14px; color: var(--muted); margin: -4px 0 8px; }
+.crowd b { color: var(--ink); }
+.crowd .chip { display: inline-block; background: #1f1f1f; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; margin: 2px; font-size: 12px; color: var(--ink); }
+.crowd .chip.you { border-color: var(--gold); color: var(--gold); }
+.room-label { margin-top: 18px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 3px; }
+.room-display { font-family: var(--street); font-size: 44px; letter-spacing: 12px; color: var(--gold); margin: 2px 0 10px; text-shadow: 0 3px 0 #000; }
+.room-display.long { font-size: 22px; letter-spacing: 3px; }
+.share { display: flex; gap: 8px; align-items: stretch; }
+.share input[type="text"] { flex: 1; margin: 0; font-size: 13px; letter-spacing: 0; text-transform: none; text-align: left; padding: 10px 12px; }
+.mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 2px; }
+.mode-opt {
+  font-family: var(--ui); text-align: left; padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  background: #0b0b0b; border: 1px solid var(--line-2); color: var(--muted); display: flex; flex-direction: column; gap: 2px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.mode-opt b { font-family: var(--street); font-weight: 400; font-size: 22px; line-height: 1.05; color: var(--ink); }
+.mode-opt span { font-size: 12px; line-height: 1.3; font-weight: 800; }
+.mode-opt.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, #0b0b0b); color: var(--ink); box-shadow: inset 0 0 0 1px var(--gold); }
+.mode-opt.on b { color: var(--gold); }
+.mode-opt:disabled { cursor: default; }
+.mode-opt:disabled:not(.on) { opacity: 0.5; }
+.mode-opt:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mode-note { color: var(--muted); font-size: 12px; margin-top: 4px; min-height: 0; }
+#lobby-card.link-room .room-details { display: none; }
+#lobby-card:not(.link-room) .link-only { display: none; }
+.wait-msg { margin-top: 14px; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .slots { gap: 6px; }
+  .slot .slot-name { font-size: 14px; }
+  .mode-opt b { font-size: 19px; }
+}

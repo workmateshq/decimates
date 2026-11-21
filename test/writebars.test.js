@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../public/engine.js');
-const Tracks = require('../public/tracks.js');
+const Engine = require('../public/js/engine.js');
+const Tracks = require('../public/js/tracks.js');
 
 const {
   GameRoom, DEFAULT_MODE, WRITE_SECONDS, WRITE_GRACE_MS, WB_ROUNDS, WB_RAP_BARS, WB_GAP_MS, WB_VOTE_SECONDS, STANDINGS_MS, LINE_MAX, LEAD_MS,

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Tracks = require('../public/tracks.js');
+const Tracks = require('../public/js/tracks.js');
 
 test('the catalogue matches the backing tracks (<bpm>BPM-*.mp3) in public/tracks/', () => {
   const files = fs.readdirSync(path.join(__dirname, '..', 'public', 'tracks')).filter((f) => /^\d+BPM-.+\.mp3$/.test(f)).sort();

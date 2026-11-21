@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # Cache-bust scripts so players get the new version straight after a deploy.
+      # Cache-bust the scripts (js/) and stylesheets (css/) so players get the new version straight after a deploy.
       - run: sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" public/index.html
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -2,9 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, RAP_NAMES, MALE_NAMES, FEMALE_NAMES, MAX_PLAYERS,
-} = require('../public/engine.js');
-const Words = require('../public/words.js');
-const Tracks = require('../public/tracks.js');
+} = require('../public/js/engine.js');
+const Words = require('../public/js/words.js');
+const Tracks = require('../public/js/tracks.js');
 
 function seeded(seed) {
   let a = seed >>> 0;

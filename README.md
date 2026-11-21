@@ -28,20 +28,35 @@ Play it at **https://workmateshq.github.io/rapmates/** or jump straight into the
 
 ### Everything else
 
-- **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk and The Bronx Jazz Hop (90 BPM), and Chicago Drill and London Grime (145 BPM). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/beats.js`](public/beats.js)).
+- **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk and The Bronx Jazz Hop (90 BPM), and Chicago Drill and London Grime (145 BPM). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/js/beats.js`](public/js/beats.js)).
 - **Rooms, links and hosting**: exactly like the other mates games. Create a room and share the 4-letter code or link; link rooms like **/rapmates/mate** are hosted by the first visitor and handed to the next person if the host leaves (rappers in slot order, then the crowd); `?group=<id>` gives an embedding app its own room. Home button in game, music and sound-effect toggles (remembered on your device).
 
 ## How it works
 
 There is no game server. Rapmates is peer-to-peer, so it runs on any static host, including GitHub Pages.
 
-- The **host's browser** runs the room ([`public/engine.js`](public/engine.js)): who's in the room, the mode, turn order, the rhyme pairs, the write clock, voting and results. Others only send the mode and "start" (host), their lines (Write Bars) and their votes. The host trims and limits every line; every screen escapes them when it shows them.
-- Players connect over WebRTC with [PeerJS](https://peerjs.com/) ([`public/net.js`](public/net.js)); add a TURN relay in [`public/config.js`](public/config.js) for networks that can't connect directly.
+- The **host's browser** runs the room ([`public/js/engine.js`](public/js/engine.js)): who's in the room, the mode, turn order, the rhyme pairs, the write clock, voting and results. Others only send the mode and "start" (host), their lines (Write Bars) and their votes. The host trims and limits every line; every screen escapes them when it shows them.
+- Players connect over WebRTC with [PeerJS](https://peerjs.com/) ([`public/js/net.js`](public/js/net.js)); add a TURN relay in [`public/js/config.js`](public/js/config.js) for networks that can't connect directly.
 - **Staying in time**: the host never streams audio. Each turn is a schedule in the host's clock: the start time of the track's intro (now + 1.5 s), the track and the 8 rhyme pairs. Every browser preloads and decodes all the tracks as soon as it's in a room, keeps estimating the difference between its clock and the host's (NTP-style pings to the host, keeping the answer with the shortest round trip), converts the start time into its own `AudioContext` time and starts the track there, so bar _n_ lands at `start + (n - 1) × 4 × 60 / bpm`. The ball and the bars read the audio output clock every frame, so they're tight to what you hear. Browsers usually agree to within a few tens of milliseconds; if the clock estimate improves mid-turn the beat re-lines itself up. If a browser hasn't been allowed to play sound yet, a "Tap to turn the beat on" button appears and the beat joins in at the right point.
+
+### Files
+
+```
+public/
+  index.html        markup only
+  404.html          GitHub Pages fallback: turns /rapmates/<room> links into ?room=<room>
+  css/              base.css, lobby.css, stage.css, overlays.css, writebars.css (loaded in that order)
+  js/               config.js, words.js, tracks.js, engine.js, net.js, beats.js, client.js
+  tracks/           backing tracks (MP3)
+  sfx/              sound effects (golf clap)
+test/               node --test suites for the engine, tracks and words
+```
+
+The deploy stamps `?v=__BUILD__` on every CSS and JS link in `index.html` with the commit, so players get fresh files straight after a deploy.
 
 ### Tracks
 
-Tracks are data in [`public/tracks.js`](public/tracks.js):
+Tracks are data in [`public/js/tracks.js`](public/js/tracks.js):
 
 ```js
 { id: 'harlem', name: 'Harlem Boom Bap', src: 'tracks/90BPM-Harlem-Boom-Bap.mp3', bpm: 90, offset: 0.067, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
@@ -70,7 +85,7 @@ Optional fields for files that don't quite fit: `skipBars` starts playback that 
 
 ## Rhyme pairs
 
-The 60 pairs in [`public/words.js`](public/words.js). In Freestyle, bar 1 of a couplet ends on word A, bar 2 on word B. In Write Bars each rapper gets 2 of them per round.
+The 60 pairs in [`public/js/words.js`](public/js/words.js). In Freestyle, bar 1 of a couplet ends on word A, bar 2 on word B. In Write Bars each rapper gets 2 of them per round.
 
 | # | A | B |
 |---|---|---|
