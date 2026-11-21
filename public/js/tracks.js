@@ -46,10 +46,9 @@
     { id: 'memphis', name: 'Memphis Dirty South', src: 'tracks/90BPM-Memphis-Dirty-South.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Drums in at bar 5, out after bar 20, short tail. Grid fit: exactly 90 BPM, beat 1 at 0.096 s.
     { id: 'nashville', name: 'Nashville Bro Country', src: 'tracks/90BPM-Nashville-Bro-Country.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
-    // Exactly 90 BPM, but the intro is only 3.5 bars: the drums drop 9.4 s in (2 beats before the next
-    // bar line on a grid from the file start) and run exactly 16 bars. Intro bar 1 starts 2 beats before
-    // the file, so the offset is negative (the file starts on beat 3 of intro bar 1).
-    { id: 'havana', name: 'Havana Reggaeton', src: 'tracks/90BPM-Havana-Reggaeton.mp3', bpm: 90, offset: -1.26, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Exactly 90 BPM, beat 1 at 0.073 s. The kick hits every beat, so the bar lines come from the intro's
+    // chord changes (every 4 beats from the file start); the drums come in with a 2-beat pickup before bar 5.
+    { id: 'havana', name: 'Havana Reggaeton', src: 'tracks/90BPM-Havana-Reggaeton.mp3', bpm: 90, offset: 0.073, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;

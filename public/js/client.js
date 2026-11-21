@@ -8,9 +8,8 @@
   const PARAMS = new URLSearchParams(location.search);
   const DEBUG = PARAMS.has('debug');
   const DEBUG_CLICK = DEBUG && PARAMS.has('click'); // ?debug&click: a metronome over the track
-  // Browser speech takes a moment to actually sound after speak(), so each line is started this much
-  // ahead of its bar (?ttslead=ms to tune it).
-  const TTS_LEAD_MS = PARAMS.has('ttslead') ? Math.max(0, Math.min(1000, Number(PARAMS.get('ttslead')) || 0)) : 250;
+  // ?ttslead=ms starts each robot-voice line that much ahead of its bar (for testing speech start-up lag).
+  const TTS_LEAD_MS = PARAMS.has('ttslead') ? Math.max(0, Math.min(1000, Number(PARAMS.get('ttslead')) || 0)) : 0;
   const COUNT_IN = Engine.COUNT_IN_BEATS;
   const BARS = Engine.BARS;
   const BPB = Engine.BEATS_PER_BAR;
