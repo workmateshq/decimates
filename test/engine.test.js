@@ -57,7 +57,7 @@ test('names are punny rappers, an even mix of men and women, all unique', () => 
   assert.ok(MALE_NAMES.length >= 18);
   assert.deepEqual(RAP_NAMES, [...MALE_NAMES, ...FEMALE_NAMES]);
   assert.equal(new Set(RAP_NAMES).size, RAP_NAMES.length);
-  ['Snoop Hogg', 'Piggie', 'Nice Cube', 'Kendrick Llama'].forEach((n) => assert.ok(MALE_NAMES.includes(n), n));
+  ['Snoop Hogg', 'Bad Buddy', 'Nice Cube', 'Kendrick Llama'].forEach((n) => assert.ok(MALE_NAMES.includes(n), n));
   ['Cardio B', 'Doja Brat', 'Megan Thee Scallion', 'Messy Elliott'].forEach((n) => assert.ok(FEMALE_NAMES.includes(n), n));
 });
 

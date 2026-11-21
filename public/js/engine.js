@@ -46,7 +46,7 @@
   // Real rapper names with a letter or two changed, half men and half women (the robot voice follows
   // the gender), handed out at random (unique within a room).
   const MALE_NAMES = [
-    'Gucci Mate', 'Drape', 'Piggie', 'Brewsy J', 'Filler Mike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
+    'Gucci Mate', 'Drape', 'Bad Buddy', 'Brewsy J', 'Filler Mike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
     'Lil Pain', 'Wu Tang Dan', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Nice Cube', '2Chins',
   ];
   const FEMALE_NAMES = [
