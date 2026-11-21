@@ -4,12 +4,16 @@
   const Engine = window.RapmatesEngine;
   const Words = window.RapmatesWords;
   const Beats = window.RapmatesBeats;
+  const Tracks = window.RapmatesTracks;
+  const PARAMS = new URLSearchParams(location.search);
+  const DEBUG = PARAMS.has('debug');
+  const DEBUG_CLICK = DEBUG && PARAMS.has('click'); // ?debug&click: a metronome over the track
   const COUNT_IN = Engine.COUNT_IN_BEATS;
   const BARS = Engine.BARS;
   const BPB = Engine.BEATS_PER_BAR;
   const TOTAL_BEATS = BARS * BPB;
-  const COUNT_WORDS = ['3', '2', '1', 'GO!'];
-  const SOLO_LEAD_MS = 2500;
+  const COUNT_WORDS = ['4', '3', '2', '1'];
+  const SOLO_LEAD_MS = 800;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -18,12 +22,12 @@
     playerId: null,
     hostId: null,
     linkRoom: false, // entered via a link like /rapmates/mate: no room code UI
-    lobby: { players: [], crowd: [], beat: 'trap', started: false },
-    game: null, // { round, beat, bpm, order, results, players }
+    lobby: { players: [], crowd: [], started: false },
+    game: null, // { round, order, results }
     phase: null, // the latest phase payload from the host
     over: null, // the latest results
     away: false, // pressed Home mid-game: still in the room, not watching
-    solo: null, // { beat, name } in solo practice
+    solo: null, // { name, lastTrackId } in solo practice
     myVote: 0,
     voted: false,
   };
@@ -114,6 +118,10 @@
     count(t, go) {
       tone(t, 'sine', go ? 1760 : 1175, go ? 1760 : 1175, 0.08, 0.5, 0.001);
       tone(t, 'triangle', go ? 880 : 587, go ? 880 : 587, 0.05, 0.25, 0.001);
+    },
+    // Debug metronome: accent on bar downbeats.
+    click(t, accent) {
+      tone(t, 'square', accent ? 2000 : 1300, accent ? 2000 : 1300, 0.03, accent ? 0.35 : 0.2, 0.001);
     },
     star(n) {
       const t = ac.currentTime;
@@ -226,47 +234,27 @@
   }
   $('mascot').innerHTML = micSvg('#E5484D', { chain: true, bandana: true });
 
-  // ---------- Beat pickers ----------
+  // ---------- Backing tracks ----------
+  // Every track is fetched and decoded as soon as you're in a room or start solo practice, so a turn
+  // never waits on the network. If a track can't be loaded the synth fallback (beats.js) plays.
 
-  const BEAT_ICONS = { trap: '🔥', boombap: '📻' };
-  const BEAT_BLURB = { trap: 'half-time, rattling hats', boombap: 'dusty, swung, crackly' };
-  const beatLabel = (beat, bpm) => `${Beats.CATALOGUE[beat].name} · ${bpm || Beats.CATALOGUE[beat].bpm} BPM`;
-  document.querySelectorAll('.beat-picker').forEach((picker) => {
-    picker.replaceChildren(...Object.keys(Beats.CATALOGUE).map((beat) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'beat-option';
-      b.dataset.beat = beat;
-      b.setAttribute('role', 'radio');
-      b.innerHTML = `<span class="beat-icon" aria-hidden="true">${BEAT_ICONS[beat] || '🎵'}</span>${esc(beatLabel(beat))}<small>${BEAT_BLURB[beat] || ''}</small>`;
-      return b;
-    }));
-  });
-  let soloBeat = (() => { try { return Beats.CATALOGUE[localStorage.getItem('rapmates-beat')] ? localStorage.getItem('rapmates-beat') : 'trap'; } catch { return 'trap'; } })();
-  function showPicker(picker, beat, enabled) {
-    picker.querySelectorAll('.beat-option').forEach((btn) => {
-      const on = btn.dataset.beat === beat;
-      btn.classList.toggle('selected', on);
-      btn.setAttribute('aria-checked', String(on));
-      btn.disabled = !enabled;
+  const trackBuffers = new Map(); // track id -> Promise<AudioBuffer> (with .buffer / .failed once settled)
+  function loadTracks() {
+    const a = getAudioCtx();
+    if (!a) return;
+    Tracks.TRACKS.forEach((t) => {
+      if (trackBuffers.has(t.id)) return;
+      const pending = fetch(t.src)
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+        .then((data) => new Promise((ok, fail) => a.decodeAudioData(data, ok, fail)));
+      pending.then((buffer) => { pending.buffer = buffer; }, (err) => {
+        pending.failed = true;
+        console.warn(`Couldn't load ${t.src}; using the synth fallback.`, err);
+      });
+      trackBuffers.set(t.id, pending);
     });
   }
-  const soloPicker = $('solo-view').querySelector('.beat-picker');
-  const roomPicker = $('room-view').querySelector('.beat-picker');
-  soloPicker.addEventListener('click', (e) => {
-    const btn = e.target.closest('.beat-option');
-    if (!btn) return;
-    soloBeat = btn.dataset.beat;
-    try { localStorage.setItem('rapmates-beat', soloBeat); } catch { /* private mode */ }
-    showPicker(soloPicker, soloBeat, true);
-  });
-  roomPicker.addEventListener('click', (e) => {
-    const btn = e.target.closest('.beat-option');
-    if (!btn || btn.disabled) return;
-    try { localStorage.setItem('rapmates-beat', btn.dataset.beat); } catch { /* private mode */ }
-    net.emit('setBeat', btn.dataset.beat);
-  });
-  showPicker(soloPicker, soloBeat, true);
+  const trackLabel = (t) => `${t.name} · ${t.bpm} BPM`;
 
   // ---------- Lobby UI ----------
 
@@ -318,14 +306,12 @@
 
   function applyLobby(payload) {
     state.hostId = payload.hostId;
-    state.lobby = { players: payload.players || [], crowd: payload.crowd || [], beat: payload.beat || 'trap', started: !!payload.started };
+    state.lobby = { players: payload.players || [], crowd: payload.crowd || [], started: !!payload.started };
     $('setup-view').style.display = 'none';
-    $('solo-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
-    showPicker(roomPicker, state.lobby.beat, isHost() && !state.lobby.started);
     const count = state.lobby.players.length;
     const host = [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.hostId);
     $('start-btn').textContent = `Start game with ${count} player${count === 1 ? '' : 's'}`;
@@ -333,7 +319,7 @@
     $('rejoin-btn').style.display = state.lobby.started && state.away ? 'block' : 'none';
     let wait = '';
     if (state.lobby.started) wait = state.away ? 'A game is on right now.' : '';
-    else if (!isHost()) wait = `Waiting for ${host ? host.name : 'the host'} to pick the beat and start...`;
+    else if (!isHost()) wait = `Waiting for ${host ? host.name : 'the host'} to start...`;
     if (!state.lobby.started && me() && me().role === 'crowd') wait = `You're in the crowd: watch the rappers and vote! ${wait}`;
     $('wait-msg').textContent = wait;
     $('room-code-txt').classList.toggle('long', payload.roomCode.length > 6);
@@ -371,13 +357,12 @@
     $('lobby-card').classList.remove('link-room');
     state.playerId = null;
     state.hostId = null;
-    state.lobby = { players: [], crowd: [], beat: 'trap', started: false };
+    state.lobby = { players: [], crowd: [], started: false };
     state.game = null;
     state.phase = null;
     state.away = false;
     renderSlots();
     $('room-view').style.display = 'none';
-    $('solo-view').style.display = 'none';
     $('setup-view').style.display = 'block';
     showLobby();
   }
@@ -396,6 +381,7 @@
     }
     showError('');
     state.playerId = res.playerId;
+    loadTracks();
     applyLobby(res);
   }
 
@@ -412,26 +398,15 @@
   $('room-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') $('join-btn').click();
   });
-  $('solo-btn').addEventListener('click', () => {
-    showError('');
-    $('setup-view').style.display = 'none';
-    $('solo-view').style.display = 'block';
-  });
-  $('solo-back-btn').addEventListener('click', () => {
-    $('solo-view').style.display = 'none';
-    $('setup-view').style.display = 'block';
-  });
-  $('solo-go-btn').addEventListener('click', () => startSolo());
+  $('solo-btn').addEventListener('click', () => startSolo());
 
   $('start-btn').addEventListener('click', () => {
     getAudioCtx();
-    const beat = state.lobby.beat;
-    net.emit('startGame', { beat, bpm: Beats.CATALOGUE[beat].bpm });
+    net.emit('startGame');
   });
   $('again-btn').addEventListener('click', () => {
     getAudioCtx();
-    const beat = state.lobby.beat;
-    net.emit('startGame', { beat, bpm: Beats.CATALOGUE[beat].bpm });
+    net.emit('startGame');
   });
   $('rejoin-btn').addEventListener('click', () => {
     getAudioCtx();
@@ -545,7 +520,8 @@
   net.on('gameStarted', (payload) => {
     state.away = false;
     state.over = null;
-    state.game = { round: payload.round, beat: payload.beat, bpm: payload.bpm, order: payload.order, results: payload.results || [] };
+    state.game = { round: payload.round, order: payload.order, results: payload.results || [] };
+    loadTracks();
     applyLobby(payload);
     $('reconnect-hint').style.display = 'none';
     enterGame();
@@ -587,7 +563,7 @@
       return;
     }
     if (p.turn && (force || !sameTurn(stage.turn, p.turn))) {
-      setupTurn(p.turn, { bpm: state.game.bpm, beat: state.game.beat, solo: false });
+      setupTurn(p.turn, { solo: false });
     }
     renderChips();
     hideOverlays();
@@ -778,32 +754,35 @@
 
   // ---------- Solo practice ----------
 
-  function startSolo() {
+  async function startSolo() {
     getAudioCtx();
+    loadTracks();
     const names = Engine.RAP_NAMES;
-    state.solo = state.solo || { name: names[Math.floor(Math.random() * names.length)] };
-    state.solo.beat = soloBeat;
-    const bpm = Beats.CATALOGUE[soloBeat].bpm;
+    state.solo = state.solo || { name: names[Math.floor(Math.random() * names.length)], lastTrackId: null };
+    const track = Tracks.pickTrack(state.solo.lastTrackId);
+    state.solo.lastTrackId = track.id;
+    // The first time, give the track a moment to finish decoding so it starts from the top.
+    const pending = trackBuffers.get(track.id);
+    if (pending && !pending.buffer) await Promise.race([pending.catch(() => {}), new Promise((r) => setTimeout(r, 4000))]);
+    if (!state.solo) return;
     const startAt = localNow() + SOLO_LEAD_MS;
-    const turn = { rapperId: 'solo', name: state.solo.name, color: '#F6C445', startAt, endAt: startAt + Engine.turnLengthMs(bpm), pairs: Words.drawPairs() };
+    const turn = {
+      rapperId: 'solo', name: state.solo.name, color: '#F6C445', startAt, endAt: startAt + Engine.turnLengthMs(track),
+      pairs: Words.drawPairs(), trackId: track.id, bpm: track.bpm,
+    };
     showError('');
     enterGame();
     renderChips();
     hideOverlays();
-    setupTurn(turn, { bpm, beat: soloBeat, solo: true });
+    setupTurn(turn, { solo: true });
   }
   function exitSolo() {
     state.solo = null;
     showLobby();
-    $('solo-view').style.display = 'none';
     $('setup-view').style.display = 'block';
   }
   $('solo-again-btn').addEventListener('click', () => startSolo());
-  $('solo-change-btn').addEventListener('click', () => {
-    exitSolo();
-    $('setup-view').style.display = 'none';
-    $('solo-view').style.display = 'block';
-  });
+  $('solo-home-btn').addEventListener('click', () => exitSolo());
 
   // ---------- The stage: bars, count-in and the bouncing ball ----------
   // Everything is driven by the turn's start time. The beat is scheduled on the audio clock at that
@@ -814,12 +793,13 @@
     bars: [],
     rows: [],
     ghost: null,
-    beatKind: 'trap',
-    bpm: 130,
-    beatSec: 60 / 130,
+    track: null,
+    bpm: 90,
+    beatSec: 60 / 90,
+    introBeats: 16, // the track's intro bars, in beats (bar 4 of them is the count-in)
     solo: false,
-    beat: null,
-    audioStart: null, // audio time of the count-in's first beat
+    audio: null, // { gain, src, synth } playing this turn's track
+    audioStart: null, // audio (speaker) time of the track's intro bar 1, beat 1
     anchoredOffset: 0,
     currentBar: -1,
     lastBeat: null,
@@ -862,13 +842,15 @@
     return row;
   }
 
-  function setupTurn(turn, { bpm, beat, solo }) {
+  function setupTurn(turn, { solo }) {
     stopStage();
+    const track = Tracks.byId(turn.trackId) || Tracks.TRACKS[0];
     stage.turn = turn;
     stage.solo = solo;
-    stage.bpm = bpm;
-    stage.beatSec = 60 / bpm;
-    stage.beatKind = beat;
+    stage.track = track;
+    stage.bpm = track.bpm;
+    stage.beatSec = 60 / track.bpm;
+    stage.introBeats = track.introBars * BPB;
     stage.bars = Words.buildBars(turn.pairs);
     stage.currentBar = -1;
     stage.lastBeat = null;
@@ -895,7 +877,7 @@
     $('ready-name').textContent = isMe ? 'You' : turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
     $('ready-line').textContent = isMe ? 'are on the mic' : 'is on the mic';
-    $('ready-beat').textContent = beatLabel(beat, bpm);
+    $('ready-beat').textContent = trackLabel(track);
     $('game-hint').textContent = isMe
       ? 'Rap along to the beat. Land the word in the 4th box right when the ball hits it.'
       : `Watch ${turn.name} land each rhyme on the 4th beat. You'll rate their bars after 16 bars.`;
@@ -907,47 +889,99 @@
   function stopStage() {
     if (stage.raf) cancelAnimationFrame(stage.raf);
     stage.raf = null;
-    if (stage.beat) stage.beat.dispose();
-    stage.beat = null;
+    stopTrack(0.25);
     stage.turn = null;
     stage.audioStart = null;
+    $('debug-info').hidden = true;
     hideOverlays();
     updateNudge();
   }
 
-  // Schedules this turn's beat and count-in on the audio clock. Called again if the audio only starts
-  // later (the browser needed a tap) or the clock estimate improves; the beat picks up part-way.
+  // Fades out whatever's playing for this turn (quickly; the track's own tail fade is scheduled).
+  function stopTrack(fade = 0.05) {
+    const audio = stage.audio;
+    stage.audio = null;
+    if (!audio || !ac) return;
+    const t = ac.currentTime;
+    audio.gain.gain.cancelScheduledValues(t);
+    audio.gain.gain.setValueAtTime(audio.gain.gain.value, t);
+    audio.gain.gain.linearRampToValueAtTime(0.0001, t + fade);
+    if (audio.src) { try { audio.src.stop(t + fade + 0.02); } catch { /* already stopped */ } }
+    if (audio.synth) audio.synth.stop(t, true);
+    audio.clicks.forEach((o) => { try { o.stop(); } catch { /* done */ } });
+    setTimeout(() => { try { audio.gain.disconnect(); } catch { /* gone */ } }, (fade + 0.5) * 1000);
+  }
+
+  // Schedules this turn's track (and the count-in ticks) on the audio clock. The file plays once from
+  // its intro bar 1 (offset + skipBars) so bar n lands at start + (n - 1) * barSeconds, and fades out
+  // from fadeAfterBars. Called again if the audio only starts later (the browser needed a tap) or the
+  // clock estimate improves; the track then picks up part-way through.
   function anchorAudio() {
-    if (stage.beat) stage.beat.stop(0, true);
-    stage.beat = null;
+    stopTrack();
     stage.audioStart = null;
     stage.anchoredOffset = offsetMs();
     const a = getAudioCtx();
     updateNudge();
     if (!a || a.state !== 'running' || !stage.turn) return;
+    loadTracks();
+    const track = stage.track;
     const lead = (localStartMs() - localNow()) / 1000;
     stage.audioStart = audioNow() + lead;
     // audioNow() is what's coming out of the speakers; schedule ahead by the output latency so the
-    // beat is heard right on time.
-    const outLatency = a.currentTime - audioNow();
-    const start = stage.audioStart + Math.max(0, outLatency);
-    const end = start + (COUNT_IN + TOTAL_BEATS) * stage.beatSec;
-    if (a.currentTime >= end) return;
-    stage.beat = Beats.createBeat(a, musicGain, stage.beatKind);
-    stage.beat.start(start);
-    stage.beat.stop(end, false, 0.6);
+    // track is heard right on time.
+    const start = stage.audioStart + Math.max(0, a.currentTime - audioNow());
+    const fadeT = start + Tracks.fadeAt(track);
+    if (a.currentTime >= fadeT + Tracks.FADE_SEC) return;
+    const gain = a.createGain();
+    gain.connect(musicGain);
+    const fadeFrom = Math.max(a.currentTime, fadeT);
+    gain.gain.setValueAtTime(1, fadeFrom);
+    gain.gain.linearRampToValueAtTime(0.0001, fadeFrom + Tracks.FADE_SEC);
+    const audio = { gain, src: null, synth: null, clicks: [], start }; // start: audio time of intro bar 1
+    stage.audio = audio;
+    const play = (buffer) => {
+      if (stage.audio !== audio) return;
+      const now = a.currentTime + 0.02;
+      const from = Tracks.playbackOffset(track);
+      const src = a.createBufferSource();
+      src.buffer = buffer;
+      src.connect(gain);
+      if (start >= now) src.start(start, from);
+      else src.start(now, from + (now - start));
+      src.stop(fadeFrom + Tracks.FADE_SEC + 0.05);
+      audio.src = src;
+    };
+    const fallback = () => {
+      if (stage.audio !== audio) return;
+      const synth = Beats.createBeat(a, gain, track.bpm < 100 ? 'boombap' : 'trap', { bpm: track.bpm, introBars: track.introBars });
+      synth.start(start);
+      synth.stop(start + Tracks.turnSeconds(track), false, 0.6);
+      audio.synth = synth;
+    };
+    const pending = trackBuffers.get(track.id);
+    if (pending && pending.buffer) play(pending.buffer);
+    else if (pending && !pending.failed) pending.then(play, fallback);
+    else fallback();
+    // Count-in ticks on the last intro bar.
     for (let i = 0; i < COUNT_IN; i++) {
-      const t = start + i * stage.beatSec;
+      const t = start + (stage.introBeats - COUNT_IN + i) * stage.beatSec;
       if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
+    }
+    if (DEBUG_CLICK) {
+      const beats = (track.introBars + track.rapBars) * BPB;
+      for (let k = 0; k < beats; k++) {
+        const t = start + k * stage.beatSec;
+        if (t > a.currentTime) sfx.click(t, k % BPB === 0);
+      }
     }
   }
 
-  // Beats since bar 1 started (negative during the count-in).
+  // Beats since the first rap bar started (negative during the intro).
   function beatPos() {
     if (stage.audioStart !== null && ac && ac.state === 'running') {
-      return (audioNow() - stage.audioStart) / stage.beatSec - COUNT_IN;
+      return (audioNow() - stage.audioStart) / stage.beatSec - stage.introBeats;
     }
-    return (localNow() - localStartMs()) / (stage.beatSec * 1000) - COUNT_IN;
+    return (localNow() - localStartMs()) / (stage.beatSec * 1000) - stage.introBeats;
   }
 
   function updateNudge() {
@@ -1009,9 +1043,9 @@
   function ballAt(p) {
     const g = stage.geometry;
     const land = g.top - g.r;
-    if (p < -COUNT_IN) return null;
+    if (p < -stage.introBeats) return null;
     if (p < 0) {
-      // Count-in: bounce on the spot over the first cell.
+      // Intro and count-in: bounce on the spot over the first cell.
       const f = p - Math.floor(p);
       return { x: g.cx[0], y: land - g.arc * 0.6 * 4 * f * (1 - f), f, alpha: 1 };
     }
@@ -1078,14 +1112,14 @@
 
     $('ready-overlay').classList.toggle('show', p < -COUNT_IN && !$('vote-overlay').classList.contains('show') && !$('score-overlay').classList.contains('show'));
 
-    // Count-in: 3, 2, 1, GO! on the beat.
+    // Count-in: 4, 3, 2, 1 on the last intro bar.
     if (p >= -COUNT_IN && p < 0) {
       const i = Math.floor(p) + COUNT_IN;
       if (i !== stage.countShown) {
         stage.countShown = i;
         const el = $('count');
         el.textContent = COUNT_WORDS[i];
-        el.className = `count${i === COUNT_IN - 1 ? ' go' : ''}`;
+        el.className = 'count';
         void el.offsetWidth;
         el.classList.add('pop');
         if (!stage.audioStart && ac && ac.state === 'running') sfx.count(ac.currentTime, i === COUNT_IN - 1);
@@ -1109,13 +1143,15 @@
     }
     stage.lastBeat = beatIdx;
 
-    $('bar-count').innerHTML = p < 0 ? 'Count-in' : p < TOTAL_BEATS ? `Bar <b>${bar + 1}</b> / ${BARS}` : `<b>${BARS}</b> / ${BARS}`;
+    const introBar = Math.floor((p + stage.introBeats) / BPB) + 1;
+    $('bar-count').innerHTML = p < 0 ? `Intro <b>${Math.max(1, introBar)}</b> / ${stage.track.introBars}` : p < TOTAL_BEATS ? `Bar <b>${bar + 1}</b> / ${BARS}` : `<b>${BARS}</b> / ${BARS}`;
     const done = p >= TOTAL_BEATS;
     if (done !== stage.ended) {
       stage.ended = done;
       $('mic-drop').style.display = done ? 'flex' : 'none';
     }
     drawBall(p, now);
+    if (DEBUG) showDebugInfo(p);
     const ph = state.phase;
     if (ph && ph.phase === 'vote' && ph.voteEndsAt && $('vote-overlay').classList.contains('show')) {
       const left = Math.max(0, Math.min(1, (ph.voteEndsAt - net.hostNow()) / (Engine.VOTE_SECONDS * 1000)));
@@ -1128,8 +1164,21 @@
     }
   }
 
+  // ?debug: the track's timing on screen (add &click for a metronome over the track).
+  function showDebugInfo(p) {
+    const t = stage.track;
+    const el = $('debug-info');
+    el.hidden = false;
+    const trackBar = Math.floor((p + stage.introBeats) / BPB) + 1;
+    const beat = Math.floor(((p % BPB) + BPB) % BPB) + 1;
+    const pending = trackBuffers.get(t.id);
+    const source = stage.audio && stage.audio.synth ? 'synth fallback' : pending && pending.buffer ? 'mp3' : 'loading';
+    el.textContent = `${t.name} (${t.id}) · ${t.bpm} BPM · offset ${t.offset}s · skipBars ${t.skipBars} · fadeAfterBars ${t.fadeAfterBars}\n`
+      + `track bar ${trackBar} beat ${beat} · rap pos ${p.toFixed(2)} beats · ${source}${DEBUG_CLICK ? ' · click on' : ' · add &click for a metronome'}`;
+  }
+
   // Debug aid: ?debug exposes the client state.
-  if (new URLSearchParams(location.search).has('debug')) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx };
+  if (DEBUG) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx, trackBuffers };
 
   buildSlots();
   renderSlots();

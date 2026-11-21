@@ -1,26 +1,25 @@
-// Authoritative Rapmates room logic: up to 4 rappers take turns spitting 16 bars over the room's beat,
+// Authoritative Rapmates room logic: up to 4 rappers take turns spitting 16 bars over a backing track,
 // everybody else in the room (other rappers and the crowd) rates each turn out of 5 stars, and the
 // best average takes the mic. Runs in the host's browser (window.RapmatesEngine) and in Node for tests
 // (require). It knows nothing about networking: the caller supplies broadcast(event, data) and
 // send(playerId, event, data).
 //
-// Timing: the room never streams the beat. Each turn is a schedule in the host's clock (now()):
-// startAt (the count-in's first beat), the tempo and the turn's rhyme pairs. Every browser converts
-// startAt into its own audio clock and plays the beat and the bouncing ball locally (see client.js).
+// Timing: the room never streams audio. Each turn is a schedule in the host's clock (now()):
+// startAt (when the track's intro bar 1 starts), the track (picked at random by the host, so everyone
+// plays the same file) and the turn's rhyme pairs. Every browser converts startAt into its own audio
+// clock and plays the track and the bouncing ball locally (see client.js and tracks.js).
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./words.js'));
-  else root.RapmatesEngine = factory(root.RapmatesWords);
-})(typeof self !== 'undefined' ? self : this, (Words) => {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./words.js'), require('./tracks.js'));
+  else root.RapmatesEngine = factory(root.RapmatesWords, root.RapmatesTracks);
+})(typeof self !== 'undefined' ? self : this, (Words, Tracks) => {
   const TICK_RATE = 10; // phase checks per second; turns themselves are absolute timestamps
   const MAX_PLAYERS = 4;
   const BARS = Words.BARS_PER_TURN; // 16
   const BEATS_PER_BAR = Words.BEATS_PER_BAR; // 4
-  const COUNT_IN_BEATS = 4; // "3, 2, 1, GO!" on the beat before bar 1
-  const LEAD_MS = 3500; // "Get ready" card before the count-in (also covers network delay)
+  const COUNT_IN_BEATS = 4; // "4, 3, 2, 1" on the last intro bar
+  const LEAD_MS = 1500; // before the track starts, so every browser gets the turn in time
   const VOTE_SECONDS = 20;
   const SCORE_MS = 4500; // how long a rapper's average is shown before the next turn
-  const BEATS = { trap: { bpm: 130 }, boombap: { bpm: 90 } };
-  const DEFAULT_BEAT = 'trap';
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Moody accents; green is kept for the ball and finished beats.
   const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8'];
@@ -49,7 +48,8 @@
   }
 
   // Milliseconds from the start of a turn (startAt) to the end of its 16th bar.
-  const turnLengthMs = (bpm) => ((COUNT_IN_BEATS + BARS * BEATS_PER_BAR) * 60000) / bpm;
+  // Milliseconds from the track's start (intro bar 1) to the end of the last rap bar.
+  const turnLengthMs = (track) => Tracks.turnSeconds(track) * 1000;
 
   // Ranks rappers by average stars (no votes counts as lowest); everyone tied on the top average wins.
   function standingsOf(results) {
@@ -77,8 +77,7 @@
       this.hostId = null;
       this.members = new Map(); // id -> { id, role: 'player'|'crowd', number, name, color, seq }
       this.seq = 0;
-      this.beat = DEFAULT_BEAT;
-      this.bpm = BEATS[DEFAULT_BEAT].bpm;
+      this.lastTrackId = null; // never the same track twice in a row
       this.started = false;
       this.loop = null;
       this.round = 0;
@@ -180,24 +179,10 @@
       return next ? next.id : null;
     }
 
-    // The host picks the beat in the lobby.
-    setBeat(requesterId, beat) {
-      if (requesterId !== this.hostId || this.started || !BEATS[beat]) return false;
-      this.beat = beat;
-      this.bpm = BEATS[beat].bpm;
-      this.broadcastLobby();
-      return true;
-    }
-
-    // The host starts (or restarts) the game. options.beat: 'trap' or 'boombap'; options.bpm lets the
-    // host's beat file set the tempo (60-200).
+    // The host starts (or restarts) the game.
     start(requesterId, options = {}) {
       if (this.started || requesterId !== this.hostId) return false;
       if (!this.players.length) return false;
-      const opts = options && typeof options === 'object' ? options : {};
-      if (BEATS[opts.beat]) this.beat = opts.beat;
-      const bpm = Number(opts.bpm);
-      this.bpm = Number.isFinite(bpm) && bpm >= 60 && bpm <= 200 ? bpm : BEATS[this.beat].bpm;
       this.round += 1;
       this.started = true;
       this.order = this.players.map((p) => p.id);
@@ -263,7 +248,9 @@
       const pairs = this.deck.splice(0, Words.PAIRS_PER_TURN).map((i) => Words.PAIRS[i].slice());
       const startAt = this.now() + this.leadMs;
       this.turnIndex = index;
-      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(this.bpm), pairs };
+      const track = Tracks.pickTrack(this.lastTrackId, this.random);
+      this.lastTrackId = track.id;
+      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(track), pairs, trackId: track.id, bpm: track.bpm };
       this.votes = new Map();
       this.phase = 'turn';
       if (announce) this.broadcast('phase', this.phasePayload());
@@ -308,7 +295,7 @@
       this.phase = 'results';
       this.turn = null;
       this.fillSlots();
-      this.broadcast('gameOver', { round: this.round, beat: this.beat, ...standingsOf(this.results) });
+      this.broadcast('gameOver', { round: this.round, ...standingsOf(this.results) });
       this.broadcastLobby();
     }
 
@@ -337,7 +324,6 @@
         roomCode: this.code,
         hostId: this.hostId,
         started: this.started,
-        beat: this.beat,
         players: this.players.map((m) => this.serializeMember(m)),
         crowd: this.crowd.map((m) => this.serializeMember(m)),
       };
@@ -346,8 +332,6 @@
     gamePayload() {
       return {
         round: this.round,
-        beat: this.beat,
-        bpm: this.bpm,
         order: this.order.slice(),
         results: this.results.slice(),
         ...this.phasePayload(),
@@ -378,7 +362,6 @@
     LEAD_MS,
     VOTE_SECONDS,
     SCORE_MS,
-    BEATS,
     PLAYER_COLORS,
     RAP_NAMES,
     MALE_NAMES,

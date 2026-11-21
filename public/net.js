@@ -169,7 +169,6 @@
         const args = Array.isArray(msg.args) ? msg.args : [];
         if (msg.ev === 'ping') conn.send({ pong: { t: args[0], h: localNow() } });
         else if (msg.ev === 'startGame') room.start(id, args[0]);
-        else if (msg.ev === 'setBeat') room.setBeat(id, args[0]);
         else if (msg.ev === 'input') room.input(id, args[0]);
         else if (msg.ev === 'leaveRoom') conn.close();
       });
@@ -425,7 +424,6 @@
 
       if (mode === 'host' && room) {
         if (ev === 'startGame') room.start(localId, args[0]);
-        else if (ev === 'setBeat') room.setBeat(localId, args[0]);
         else if (ev === 'input') room.input(localId, args[0]);
       } else if (mode === 'client' && hostConn && hostConn.open) {
         hostConn.send({ ev, args });

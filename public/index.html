@@ -134,23 +134,6 @@
     .crowd b { color: var(--ink); }
     .crowd .chip { display: inline-block; background: #1f1f1f; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; margin: 2px; font-size: 12px; color: var(--ink); }
     .crowd .chip.you { border-color: var(--gold); color: var(--gold); }
-    .section-title { margin: 6px 0 8px; font-size: 12px; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; }
-    .beat-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .beat-option {
-      font-family: var(--ui); font-weight: 900; font-size: 15px; cursor: pointer; padding: 12px 8px 10px;
-      border-radius: var(--radius); border: 1px solid var(--line-2); background: #141414; color: var(--ink);
-      box-shadow: 0 3px 0 #000; display: flex; flex-direction: column; align-items: center; gap: 2px;
-      position: relative; top: 0; transition: top 0.06s, box-shadow 0.06s, border-color 0.15s;
-    }
-    .beat-option .beat-icon { font-size: 22px; line-height: 1; filter: grayscale(0.3); }
-    .beat-option small { font-size: 12px; color: var(--muted); font-weight: 800; }
-    .beat-option:hover:not(:disabled) { border-color: var(--gold); }
-    .beat-option:active:not(:disabled) { top: 3px; box-shadow: 0 0 0 #000; }
-    .beat-option.selected { border-color: var(--gold); background: rgba(246, 196, 69, 0.09); color: var(--gold); box-shadow: 0 3px 0 var(--gold-dark); }
-    .beat-option.selected small { color: #d8c48f; }
-    .beat-option:disabled { cursor: default; opacity: 0.45; }
-    .beat-option.selected:disabled { opacity: 1; }
-    .beat-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     .room-label { margin-top: 18px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 3px; }
     .room-display { font-family: var(--street); font-size: 44px; letter-spacing: 12px; color: var(--gold); margin: 2px 0 10px; text-shadow: 0 3px 0 #000; }
     .room-display.long { font-size: 22px; letter-spacing: 3px; }
@@ -293,6 +276,12 @@
     .confetto { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
     @keyframes fall { to { transform: translate3d(var(--dx), 110vh, 0) rotate(var(--rot)); } }
 
+    #debug-info {
+      position: fixed; left: 8px; bottom: 8px; z-index: 60; margin: 0; padding: 6px 10px; max-width: calc(100vw / 0.9 - 16px);
+      font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--go-bright); background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; pointer-events: none;
+    }
+    #debug-info[hidden] { display: none; }
     .sound-nudge {
       position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 40; display: none;
       width: auto; padding: 12px 20px;
@@ -329,18 +318,9 @@
       <button class="btn orange" id="solo-btn">Solo practice</button>
     </div>
 
-    <div id="solo-view" style="display:none;">
-      <p class="section-title" id="solo-beat-title">Pick your beat</p>
-      <div class="beat-picker" role="radiogroup" aria-labelledby="solo-beat-title"></div>
-      <button class="btn orange" id="solo-go-btn">Let's go!</button>
-      <button class="btn ghost" id="solo-back-btn">Back</button>
-    </div>
-
     <p class="hint" id="connecting-hint" style="display:none;">Connecting...</p>
 
     <div id="room-view" style="display:none;">
-      <p class="section-title" id="room-beat-title">Pick the beat</p>
-      <div class="beat-picker" role="radiogroup" aria-labelledby="room-beat-title"></div>
       <button class="btn" id="start-btn">Start Game</button>
       <button class="btn yellow" id="rejoin-btn" style="display:none;">Back to the show</button>
       <p class="wait-msg" id="wait-msg"></p>
@@ -441,7 +421,7 @@
           <p class="kicker">16 bars done</p>
           <p class="big-title">Nice! Again?</p>
           <button class="btn orange" id="solo-again-btn">Again!</button>
-          <button class="btn ghost" id="solo-change-btn">Change beat</button>
+          <button class="btn ghost" id="solo-home-btn">Home</button>
         </div>
       </div>
     </div>
@@ -449,10 +429,12 @@
 
   <button class="btn yellow sound-nudge" id="sound-nudge">Tap to turn the beat on</button>
   <div id="confetti"></div>
+  <pre id="debug-info" hidden></pre>
 
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="config.js?v=__BUILD__"></script>
   <script src="words.js?v=__BUILD__"></script>
+  <script src="tracks.js?v=__BUILD__"></script>
   <script src="engine.js?v=__BUILD__"></script>
   <script src="net.js?v=__BUILD__"></script>
   <script src="beats.js?v=__BUILD__"></script>

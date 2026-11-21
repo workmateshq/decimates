@@ -1,21 +1,17 @@
-// Rapmates beats, synthesized live with the Web Audio API (no samples).
+// Fallback beats, synthesized live with the Web Audio API, used only if a backing track (tracks.js)
+// can't be loaded.
 //
-//   const beat = RapmatesBeats.createBeat(audioCtx, outputNode, 'trap' | 'boombap');
-//   beat.bpm;                 // tempo
-//   await beat.ready;         // resolves once an MP3 beat has loaded (immediately for synth beats)
-//   beat.start(atTime);       // atTime in audioCtx time: beat 1 of bar 0. A time in the past starts
+//   const beat = RapmatesBeats.createBeat(audioCtx, outputNode, 'trap' | 'boombap', { bpm, introBars });
+//   beat.start(atTime);       // atTime in audioCtx time: beat 1 of bar 1. A time in the past starts
 //                             // part-way through, as if it had started then (late joiners)
 //   beat.onBeat((beatIndex, time) => {}); // called as each beat is scheduled (time is audio time)
 //   beat.stop(atTime);        // fades out at atTime (default: now)
 //
-// Swapping in real beats: give a catalogue entry a `src` (an MP3 loop), its `bpm` and `offset` (seconds
-// from the start of the file to beat 1 of bar 1). Optional `loopBars` sets the loop length (defaults to
-// the whole file). The scheduler still runs for onBeat callbacks; only the synth drums are skipped.
-// Bar 0 of a turn is the count-in, which the synth beats play as a stripped-back intro.
+// The first `introBars` bars are a stripped-back intro (no kick, snare or bass).
 (function (root) {
   const CATALOGUE = {
-    trap: { name: '808 Trap', bpm: 130, src: null, offset: 0, introBars: 1 },
-    boombap: { name: 'Boom Bap', bpm: 90, src: null, offset: 0, introBars: 1 },
+    trap: { name: '808 Trap', bpm: 130, introBars: 1 },
+    boombap: { name: 'Boom Bap', bpm: 90, introBars: 1 },
   };
 
   const LOOKAHEAD_S = 0.1; // schedule this far ahead
@@ -89,16 +85,8 @@
     return curve;
   }
 
-  const bufferCache = new Map();
-  function loadBuffer(ctx, src) {
-    if (!bufferCache.has(src)) {
-      bufferCache.set(src, fetch(src).then((r) => r.arrayBuffer()).then((data) => new Promise((ok, fail) => ctx.decodeAudioData(data, ok, fail))));
-    }
-    return bufferCache.get(src);
-  }
-
-  function createBeat(ctx, out, kind) {
-    const spec = CATALOGUE[kind] || CATALOGUE.trap;
+  function createBeat(ctx, out, kind, options = {}) {
+    const spec = { ...(CATALOGUE[kind] || CATALOGUE.trap), ...options };
     const bpm = spec.bpm;
     const stepDur = 60 / bpm / STEPS_PER_BEAT;
     const beatListeners = [];
@@ -121,9 +109,6 @@
     let stopAt = Infinity;
     let stopTimer = null;
     let running = false;
-    let fileSource = null;
-    let buffer = null;
-    const ready = spec.src ? loadBuffer(ctx, spec.src).then((b) => { buffer = b; }) : Promise.resolve();
 
     // ---------- instruments ----------
 
@@ -371,7 +356,6 @@
 
     function scheduleStep(step, t) {
       if (step % STEPS_PER_BEAT === 0) beatListeners.forEach((fn) => fn(step / STEPS_PER_BEAT, t));
-      if (spec.src) return; // an MP3 loop is playing instead
       if (kind === 'boombap') boomStep(step, t);
       else trapStep(step, t);
     }
@@ -392,30 +376,10 @@
       }
     }
 
-    function startFile(atTime) {
-      const loopStart = spec.offset || 0;
-      const loopEnd = spec.loopBars ? loopStart + (spec.loopBars * 4 * 60) / bpm : buffer.duration;
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      src.loopStart = loopStart;
-      src.loopEnd = loopEnd;
-      src.connect(bus);
-      const now = ctx.currentTime;
-      if (atTime >= now) {
-        src.start(atTime, loopStart);
-      } else {
-        const len = loopEnd - loopStart;
-        src.start(now, loopStart + ((now - atTime) % len));
-      }
-      fileSource = src;
-    }
-
     return {
       kind,
       bpm,
       name: spec.name,
-      ready,
       get startTime() {
         return t0;
       },
@@ -427,9 +391,7 @@
         stopAt = Infinity;
         nextStep = Math.max(0, Math.floor((ctx.currentTime - atTime) / stepDur));
         running = true;
-        if (buffer) startFile(atTime);
-        else if (spec.src) ready.then(() => { if (running && t0 === atTime) startFile(atTime); });
-        if (kind === 'boombap' && !buffer) startCrackle(atTime);
+        if (kind === 'boombap') startCrackle(atTime);
         killScheduler = createTimer(tick, TIMER_MS);
         tick();
       },
@@ -442,7 +404,6 @@
           bus.gain.linearRampToValueAtTime(0.0001, when + fade);
         }
         const end = when + (quiet ? 0 : fade);
-        if (fileSource) { try { fileSource.stop(end); } catch { /* already stopped */ } fileSource = null; }
         if (crackleSrc) { try { crackleSrc.stop(end); } catch { /* already stopped */ } crackleSrc = null; }
         clearTimeout(stopTimer);
         const finish = () => {

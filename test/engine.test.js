@@ -4,6 +4,7 @@ const {
   GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, RAP_NAMES, MALE_NAMES, FEMALE_NAMES, MAX_PLAYERS,
 } = require('../public/engine.js');
 const Words = require('../public/words.js');
+const Tracks = require('../public/tracks.js');
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -38,7 +39,7 @@ function makeRoom() {
 function startedRoom(players = 2, crowd = 0) {
   const ctx = makeRoom();
   for (let i = 1; i <= players + crowd; i++) ctx.room.join(`p${i}`);
-  ctx.room.start('p1', { beat: 'trap' });
+  ctx.room.start('p1');
   return ctx;
 }
 
@@ -109,33 +110,44 @@ test('the host hands over to the next rapper, then the crowd', () => {
   assert.equal(room.hostId, 'e', 'the crowd member (promoted to rapper) hosts');
 });
 
-test('only the host picks the beat and starts the game', () => {
+test('only the host starts the game', () => {
   const { room } = makeRoom();
   room.join('a');
   room.join('b');
-  assert.equal(room.setBeat('b', 'boombap'), false);
-  assert.equal(room.setBeat('a', 'nope'), false);
-  assert.ok(room.setBeat('a', 'boombap'));
-  assert.equal(room.lobbyPayload().beat, 'boombap');
   assert.equal(room.start('b'), false);
   assert.ok(room.start('a'));
-  assert.equal(room.bpm, 90);
   assert.equal(room.start('a'), false, 'already started');
 });
 
-test('a turn is a shared schedule: get-ready lead, count-in, 16 bars at the beat\'s tempo', () => {
+test('a turn is a shared schedule: a random track, a short lead, 4 intro bars + 16 rap bars', () => {
   const ctx = startedRoom(2);
   const payload = ctx.last('gameStarted').data;
   assert.equal(payload.phase, 'turn');
-  assert.equal(payload.bpm, 130);
-  assert.equal(payload.turn.rapperId, 'p1');
-  assert.equal(payload.turn.startAt, ctx.now() + LEAD_MS);
-  assert.equal(payload.turn.endAt - payload.turn.startAt, turnLengthMs(130));
-  assert.equal(Math.round(turnLengthMs(130)), Math.round(((4 + 64) * 60000) / 130));
-  assert.equal(payload.turn.pairs.length, 8);
+  const { turn } = payload;
+  const track = Tracks.byId(turn.trackId);
+  assert.ok(track, 'a known track');
+  assert.equal(turn.bpm, track.bpm);
+  assert.equal(turn.rapperId, 'p1');
+  assert.equal(turn.startAt, ctx.now() + LEAD_MS);
+  assert.equal(turn.endAt - turn.startAt, turnLengthMs(track));
+  assert.equal(Math.round(turnLengthMs(track)), Math.round(((4 + 16) * 4 * 60000) / track.bpm));
+  assert.equal(turn.pairs.length, 8);
   assert.equal(ctx.room.phase, 'turn');
   ctx.advance(1000);
   assert.equal(ctx.room.phase, 'turn', 'still rapping');
+});
+
+test('every turn gets a track, never the same one twice in a row', () => {
+  const ctx = startedRoom(4);
+  const ids = [];
+  for (let t = 0; t < 4; t++) {
+    ids.push(ctx.room.turn.trackId);
+    finishRap(ctx);
+    ctx.advance(VOTE_SECONDS * 1000);
+    ctx.advance(SCORE_MS);
+  }
+  ids.forEach((id) => assert.ok(Tracks.byId(id)));
+  for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1]);
 });
 
 test('turns go in player order P1 -> P4, each with fresh rhyme pairs', () => {
