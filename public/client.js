@@ -902,7 +902,7 @@
     const isMe = solo || turn.rapperId === state.playerId;
     const micName = $('mic-name');
     micName.style.setProperty('--pc', turn.color);
-    micName.innerHTML = `<small>On the mic</small>${esc(isMe ? `${turn.name} (you)` : turn.name)}`;
+    micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
     $('ready-kicker').textContent = 'Get ready';
     $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
     $('ready-name').textContent = turn.name;

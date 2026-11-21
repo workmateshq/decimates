@@ -25,7 +25,7 @@ There is no game server. Rapmates is peer-to-peer, so it runs on any static host
 Tracks are data in [`public/tracks.js`](public/tracks.js):
 
 ```js
-{ id: 'harlem', name: 'Harlem Boom Bap', src: 'tracks/90BPM-Harlem-Boom-Bap.mp3', bpm: 90, offset: 0.067, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 21 },
+{ id: 'harlem', name: 'Harlem Boom Bap', src: 'tracks/90BPM-Harlem-Boom-Bap.mp3', bpm: 90, offset: 0.067, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
 ```
 
 | Track | BPM | `offset` (bar 1, beat 1) |
@@ -42,7 +42,7 @@ Tracks are data in [`public/tracks.js`](public/tracks.js):
 3. Set `bpm`, and `offset`: the seconds from the start of the file to beat 1 of bar 1 (the first intro bar). Measure it on the browser's decoded audio, since that's what players hear (MP3 encoder delay is handled the same way): the offsets above were found by fitting the known-tempo beat grid to the drum hits over the whole drum section (high-passed energy onsets in 1 ms steps); every track's hits sit within about 1 ms of its grid. A good first guess: the time of the first drum hit on bar 5, minus 4 bars (4 × 4 × 60 / bpm).
 4. Check it by ear with **`?debug&click`**: a metronome clicks on every beat over the track (accented on each bar's downbeat), and the track name, offset and current bar/beat show on screen. The click should sit right on the kick and snare from bar 5.
 
-Optional fields for files that don't quite fit: `skipBars` starts playback that many bars into the file (e.g. a track with an 8-bar intro uses `skipBars: 4`), and `fadeAfterBars` sets when the track fades out over 1.5 s, counted in bars from the playback start (21 lets one bar of tail ring; use 20 for a track whose drums carry on past bar 20).
+Optional fields for files that don't quite fit: `skipBars` starts playback that many bars into the file (e.g. a track with an 8-bar intro uses `skipBars: 4`), and `fadeAfterBars` sets when the track fades out over 3 s, counted in bars from the playback start (22 lets two bars of tail ring; use 20 for a track whose drums carry on past bar 20).
 
 ## Rhyme pairs
 

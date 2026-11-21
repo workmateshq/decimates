@@ -25,7 +25,7 @@ test('schedule maths: 4 intro bars then 16 rap bars on the track grid', () => {
   assert.equal(Tracks.barTime(t, 5), 4 * (8 / 3), 'rapping starts at bar 5');
   assert.equal(Tracks.turnSeconds(t), 20 * (8 / 3), '4 intro + 16 rap bars');
   assert.equal(Tracks.playbackOffset(t), t.offset);
-  assert.equal(Tracks.fadeAt(t), 21 * (8 / 3));
+  assert.equal(Tracks.fadeAt(t), 22 * (8 / 3));
 });
 
 test('skipBars starts playback later in the file (for re-cut tracks with a longer intro)', () => {
