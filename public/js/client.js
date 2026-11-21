@@ -160,31 +160,33 @@
       const claps = Math.round(10 + 24 * size);
       for (let i = 0; i < claps; i++) noise(t + Math.random() * 1.4, 0.05, 'bandpass', 1000 + Math.random() * 1500, 0.3 * size, 1.5);
     },
-    // Air horn: detuned saws with a little pitch scoop. BWAP BWAP BWAAAAP.
-    airhorn() {
-      const t0 = ac.currentTime;
-      [[0, 0.16], [0.22, 0.16], [0.44, 0.8]].forEach(([d, len]) => {
-        const t = t0 + d;
+    // Game-show win: a quick rising brass-y run (G C E G) into a held C major chord with a shimmer on top.
+    win() {
+      const t0 = ac.currentTime + 0.02;
+      const note = (t, freq, len, peak) => {
         const g = ac.createGain();
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-        g.gain.setValueAtTime(0.18, t + len - 0.05);
+        g.gain.exponentialRampToValueAtTime(peak, t + 0.015);
+        g.gain.setValueAtTime(peak, t + len * 0.6);
         g.gain.exponentialRampToValueAtTime(0.0001, t + len);
         const f = ac.createBiquadFilter();
         f.type = 'lowpass';
-        f.frequency.value = 2600;
+        f.frequency.value = 3200;
         f.connect(g).connect(sfxGain);
-        [0, 7, -9, 1205].forEach((cents) => {
+        [-6, 6].forEach((cents) => {
           const o = ac.createOscillator();
           o.type = 'sawtooth';
-          o.frequency.setValueAtTime(400, t);
-          o.frequency.exponentialRampToValueAtTime(466, t + 0.05);
+          o.frequency.value = freq;
           o.detune.value = cents;
           o.connect(f);
           o.start(t);
           o.stop(t + len + 0.05);
         });
-      });
+      };
+      [392, 523.25, 659.25, 783.99].forEach((fr, i) => note(t0 + i * 0.11, fr, 0.14, 0.07));
+      const hold = t0 + 0.46;
+      [523.25, 659.25, 783.99, 1046.5].forEach((fr) => note(hold, fr, 1.3, 0.05));
+      [2093, 2637, 3136, 4186].forEach((fr, i) => tone(hold + 0.05 + i * 0.07, 'sine', fr, fr, 0.5, 0.05));
     },
   };
   function playSfx(name, ...args) {
@@ -1080,8 +1082,10 @@
     }));
     updateResultsButtons();
     $('results-overlay').classList.add('show');
-    if (winners.length) confetti();
-    playSfx('airhorn');
+    if (winners.length) {
+      confetti();
+      playSfx('win');
+    }
   }
 
   function confetti() {
