@@ -45,6 +45,9 @@
     // Measures 145 BPM (not 140): light drums in at bar 5, the full kick pattern from bar 7, music
     // stops after bar 20. Beat 1 at 0.081 s.
     { id: 'chicago', name: 'Chicago Drill', src: 'tracks/145BPM-Chicago-Drill.mp3', bpm: 145, offset: 0.081, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Measures 145 BPM (not 140). Beat 1 at 0.273 s; a 6-bar intro, drums from bar 7 for 18 bars. Skip
+    // 2 intro bars so the drop lands on rap bar 1, and fade as the 16 rap bars end (the drums run on 2 bars).
+    { id: 'london', name: 'London Grime', src: 'tracks/145BPM-London-Grime.mp3', bpm: 145, offset: 0.273, skipBars: 2, introBars: 4, rapBars: 16, fadeAfterBars: 20 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;
