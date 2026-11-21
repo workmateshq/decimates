@@ -180,7 +180,7 @@ test('performances go in seat order on 90 BPM tracks (never the same twice runni
   assert.equal(turns.length, 12);
   assert.deepEqual(turns.slice(0, 4).map((t) => t.rapperId), ['p1', 'p2', 'p3', 'p4']);
   assert.deepEqual(turns.slice(0, 4).map((t) => t.voiceGender), ['male', 'female', 'male', 'female']);
-  assert.ok(turns.every((t) => Engine.VOICE_ACCENTS.includes(t.voiceAccent)), 'each performance gets a UK, Australian or American voice');
+  assert.ok(turns.every((t) => Engine.VOICE_ACCENTS.includes(t.voiceAccent)), 'each performance gets a UK or American voice');
   assert.ok(turns.every((t) => t.bpm === 90 && Tracks.byId(t.trackId).bpm === 90));
   for (let i = 1; i < turns.length; i++) assert.notEqual(turns[i].trackId, turns[i - 1].trackId);
   assert.equal(Tracks.pickTrack('brooklyn', Math.random, (t) => t.id === 'harlem').id, 'harlem', 'the filter limits the choice');

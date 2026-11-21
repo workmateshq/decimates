@@ -34,7 +34,7 @@
   const WB_PAIRS = 2; // per rapper per round: lines 1-2 use pair A, lines 3-4 pair B
   const WB_BARS_PER_LINE = 2;
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
-  const VOICE_ACCENTS = ['GB', 'AU', 'US']; // the robot voice's accent, picked at random per performance
+  const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
   const WB_GAP_MS = 3000; // after a performance: the golf clap while the track fades
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer

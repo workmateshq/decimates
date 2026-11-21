@@ -8,6 +8,9 @@
   const PARAMS = new URLSearchParams(location.search);
   const DEBUG = PARAMS.has('debug');
   const DEBUG_CLICK = DEBUG && PARAMS.has('click'); // ?debug&click: a metronome over the track
+  // Browser speech takes a moment to actually sound after speak(), so each line is started this much
+  // ahead of its bar (?ttslead=ms to tune it).
+  const TTS_LEAD_MS = PARAMS.has('ttslead') ? Math.max(0, Math.min(1000, Number(PARAMS.get('ttslead')) || 0)) : 250;
   const COUNT_IN = Engine.COUNT_IN_BEATS;
   const BARS = Engine.BARS;
   const BPB = Engine.BEATS_PER_BAR;
@@ -1303,22 +1306,18 @@
 
   // ---------- Robot voice (speechSynthesis) ----------
   // The browser's own text-to-speech, on every screen in the room. The host picks each performance's
-  // voice gender and accent (UK, Australian or American); each browser picks its closest voice.
+  // voice gender and accent (UK or American); each browser picks its closest voice.
   const VOICE_PREFS = {
     GB: {
       male: ['Daniel', 'Arthur', 'Google UK English Male', 'Microsoft Ryan', 'Microsoft George', 'Microsoft Thomas', 'Oliver'],
       female: ['Martha', 'Serena', 'Kate', 'Google UK English Female', 'Microsoft Sonia', 'Microsoft Libby', 'Microsoft Hazel', 'Stephanie'],
-    },
-    AU: {
-      male: ['Gordon', 'Lee', 'Microsoft William', 'Microsoft Darren', 'James'],
-      female: ['Karen', 'Catherine', 'Microsoft Natasha', 'Microsoft Annette', 'Microsoft Freya'],
     },
     US: {
       male: ['Aaron', 'Alex', 'Fred', 'Ralph', 'Microsoft Guy', 'Microsoft David', 'Microsoft Mark', 'Microsoft Christopher', 'Evan', 'Tom'],
       female: ['Samantha', 'Nicky', 'Microsoft Aria', 'Microsoft Jenny', 'Microsoft Zira', 'Ava', 'Allison', 'Susan', 'Google US English'],
     },
   };
-  const ACCENT_LANG = { GB: /^en[-_]GB/i, AU: /^en[-_]AU/i, US: /^en[-_]US/i };
+  const ACCENT_LANG = { GB: /^en[-_]GB/i, US: /^en[-_]US/i };
   const MALE_HINT = /\b(male|daniel|alex|aaron|arthur|fred|rishi|guy|david|mark|george|james|tom|oliver|lee|reed|ralph|gordon|eddy|rocko)\b/i;
   const FEMALE_HINT = /\b(female|samantha|karen|victoria|moira|tessa|aria|jenny|zira|susan|hazel|serena|fiona|kate|allison|ava|nicky|catherine|martha|libby|sonia|shelley|flo|sandy|google us english)\b/i;
   // macOS novelty voices: fun, but not for reading bars.
@@ -1366,7 +1365,7 @@
     stage.ttsTimers.forEach((t) => clearTimeout(t));
     stage.ttsTimers = [];
     if (!stage.wb || !stage.turn || stage.turn.voice === 'self' || !window.speechSynthesis) return;
-    const msTo = (k) => (k * LINE_BEATS - beatPos()) * stage.beatSec * 1000;
+    const msTo = (k) => (k * LINE_BEATS - beatPos()) * stage.beatSec * 1000 - TTS_LEAD_MS;
     for (let k = 0; k < WB_LINES; k++) {
       if (stage.ttsQueued[k]) continue;
       const turn = stage.turn;
