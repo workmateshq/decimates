@@ -1,7 +1,7 @@
 {
   "name": "rapmates",
   "version": "1.0.0",
-  "description": "Party rap battle for up to 4 mates plus a voting crowd: 16 bars each over a synthesized beat, with a bouncing ball and rhyme prompts. Peer-to-peer, runs on GitHub Pages",
+  "description": "Party rap battle for up to 4 mates plus a voting crowd: Write Bars (write 4 lines on your rhymes, then perform them over the beat, live or by robot voice) or Freestyle (16 bars with a bouncing ball and rhyme prompts). Peer-to-peer, runs on GitHub Pages",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -54,16 +54,21 @@
   const barSeconds = (track) => (4 * 60) / track.bpm;
   // Where in the file playback starts (beat 1 of intro bar 1).
   const playbackOffset = (track) => track.offset + track.skipBars * barSeconds(track);
-  // Seconds from intro bar 1 to the end of the last rap bar.
-  const turnSeconds = (track) => (track.introBars + track.rapBars) * barSeconds(track);
+  // Seconds from intro bar 1 to the end of the last rap bar. A mode with shorter turns passes its own
+  // rapBars (Write Bars: 8).
+  const turnSeconds = (track, rapBars = track.rapBars) => (track.introBars + rapBars) * barSeconds(track);
   // Seconds after the playback start when the bar `n` (1-based) begins.
   const barTime = (track, n) => (n - 1) * barSeconds(track);
-  const fadeAt = (track) => track.fadeAfterBars * barSeconds(track);
+  // When the fade starts; a mode with shorter turns passes its own fadeAfterBars (Write Bars: 4 + 8).
+  const fadeAt = (track, fadeAfterBars = track.fadeAfterBars) => fadeAfterBars * barSeconds(track);
 
-  // A random track, never the one just played (when there's a choice).
-  function pickTrack(previousId, random = Math.random) {
-    const choices = TRACKS.filter((t) => t.id !== previousId);
-    const pool = choices.length ? choices : TRACKS;
+  // A random track, never the one just played (when there's a choice). `filter` narrows the catalogue
+  // (Write Bars only uses the 90 BPM tracks).
+  function pickTrack(previousId, random = Math.random, filter = () => true) {
+    const allowed = TRACKS.filter(filter);
+    const all = allowed.length ? allowed : TRACKS;
+    const choices = all.filter((t) => t.id !== previousId);
+    const pool = choices.length ? choices : all;
     return pool[Math.floor(random() * pool.length)];
   }
 

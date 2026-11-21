@@ -17,8 +17,9 @@ function seeded(seed) {
   };
 }
 
-// A room with a manual clock and loop that records every message it sends.
-function makeRoom() {
+// A room with a manual clock and loop that records every message it sends. The existing tests cover
+// Freestyle; Write Bars (the default mode) has its own tests in writebars.test.js.
+function makeRoom(mode = 'freestyle') {
   const sent = [];
   let tickFn = null;
   let clock = 1000;
@@ -30,6 +31,7 @@ function makeRoom() {
     random: seeded(7),
     now: () => clock,
   });
+  room.mode = mode;
   // Moves the clock on and lets the room's loop notice.
   const advance = (ms) => { clock += ms; if (tickFn) tickFn(); };
   const last = (ev, to) => [...sent].reverse().find((m) => m.ev === ev && (!to || m.to === to));

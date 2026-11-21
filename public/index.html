@@ -145,6 +145,20 @@
     .room-display.long { font-size: 22px; letter-spacing: 3px; }
     .share { display: flex; gap: 8px; align-items: stretch; }
     .share input[type="text"] { flex: 1; margin: 0; font-size: 13px; letter-spacing: 0; text-transform: none; text-align: left; padding: 10px 12px; }
+    .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 2px; }
+    .mode-opt {
+      font-family: var(--ui); text-align: left; padding: 10px 12px; border-radius: 8px; cursor: pointer;
+      background: #0b0b0b; border: 1px solid var(--line-2); color: var(--muted); display: flex; flex-direction: column; gap: 2px;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .mode-opt b { font-family: var(--street); font-weight: 400; font-size: 22px; line-height: 1.05; color: var(--ink); }
+    .mode-opt span { font-size: 12px; line-height: 1.3; font-weight: 800; }
+    .mode-opt.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, #0b0b0b); color: var(--ink); box-shadow: inset 0 0 0 1px var(--gold); }
+    .mode-opt.on b { color: var(--gold); }
+    .mode-opt:disabled { cursor: default; }
+    .mode-opt:disabled:not(.on) { opacity: 0.5; }
+    .mode-opt:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .mode-note { color: var(--muted); font-size: 12px; margin-top: 4px; min-height: 0; }
     #lobby-card.link-room .room-details { display: none; }
     #lobby-card:not(.link-room) .link-only { display: none; }
     .wait-msg { margin-top: 14px; color: var(--muted); }
@@ -282,6 +296,92 @@
     .confetto { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
     @keyframes fall { to { transform: translate3d(var(--dx), 110vh, 0) rotate(var(--rot)); } }
 
+    /* ---------- Write Bars: writing ---------- */
+    .write-view { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: stretch; text-align: left; }
+    .write-view[hidden] { display: none; }
+    .write-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 10px; }
+    .write-round { font-family: var(--street); font-size: clamp(20px, 3vw, 30px); line-height: 1.05; color: #6b6862; }
+    .write-round b { color: var(--gold); font-weight: 400; }
+    .write-clock {
+      font-family: var(--street); font-size: clamp(54px, 9vw, 84px); line-height: 1; color: var(--ink); min-width: 2.2ch; text-align: right;
+      text-shadow: 0 4px 0 #000; font-variant-numeric: tabular-nums;
+    }
+    .write-clock.panic { color: var(--red); animation: panic 1s ease-in-out infinite; text-shadow: 0 4px 0 #000, 0 0 30px rgba(229, 72, 77, 0.5); }
+    .write-clock.panic.fast { animation-duration: 0.5s; }
+    @keyframes panic { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 40% { transform: scale(0.98); } }
+    .write-card { padding: 16px; text-align: left; max-width: none; }
+    .write-pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .write-pair { background: #0b0b0b; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; }
+    .write-pair small { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+    .write-pair span { font-family: var(--street); font-size: clamp(20px, 3.4vw, 28px); line-height: 1.1; color: var(--gold); }
+    .write-pair span i { font-style: normal; color: #6b6862; padding: 0 4px; }
+    .write-line { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; margin-top: 8px; }
+    .write-line label { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .write-line label b { display: block; font-family: var(--street); font-weight: 400; font-size: 13px; letter-spacing: 0; text-transform: lowercase; color: var(--gold); line-height: 1.1; overflow-wrap: anywhere; }
+    .write-line input[type="text"] { margin: 0; font-size: 18px; letter-spacing: 0; text-transform: none; text-align: left; padding: 11px 12px; }
+    .write-line input[type="text"]:disabled { color: var(--muted); }
+    .write-tip { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    .voice-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .voice-pick > span { font-size: 13px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-right: 2px; }
+    .voice-opt {
+      font-family: var(--ui); font-weight: 900; font-size: 13px; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      background: #0b0b0b; border: 1px solid var(--line-2); color: var(--muted);
+    }
+    .voice-opt.on { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, #0b0b0b); }
+    .voice-opt:disabled { cursor: default; }
+    .write-status { color: var(--muted); font-size: 14px; margin-top: 10px; text-align: center; min-height: 20px; }
+    .write-watch { text-align: center; padding: 26px 16px; max-width: none; }
+    .writers { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 12px; }
+    .writer { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; background: #161616; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+    .writer::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--pc); }
+    .writer.done { color: var(--ink); border-color: color-mix(in srgb, var(--go-bright) 60%, #000); }
+    .writer.done::after { content: '✓'; color: var(--go-bright); }
+
+    /* ---------- Write Bars: the battle (lines on the plain brick) ---------- */
+    .wb-lines { display: none; }
+    #stage.wb .bars-wrap { padding-top: 0; height: clamp(300px, 58vh, 560px); }
+    #stage.wb #bars, #stage.wb #ball-canvas { display: none; }
+    #stage.wb .wb-lines {
+      display: flex; flex-direction: column; justify-content: center; gap: clamp(8px, 2vh, 18px);
+      position: absolute; inset: 0; padding: 0 4px 34px; text-align: center;
+    }
+    .wb-line {
+      font-family: var(--street); font-size: clamp(18px, 2.8vw, 30px); line-height: 1.12; color: #8b867d;
+      opacity: 0; transform: translateY(18px); transition: opacity 0.3s ease, transform 0.35s cubic-bezier(.25, 1, .4, 1), font-size 0.25s, color 0.25s;
+      overflow-wrap: anywhere; text-shadow: 0 3px 0 #000;
+    }
+    .wb-line.shown { opacity: 0.5; transform: none; }
+    .wb-line.current { opacity: 1; color: var(--ink); font-size: clamp(26px, 4.8vw, 54px); }
+    .wb-line mark { background: none; color: var(--gold); text-shadow: 0 3px 0 #000, 0 0 22px rgba(246, 196, 69, 0.35); }
+    .wb-line:not(.current) mark { color: #b8973a; }
+    .wb-line .wb-empty { color: #5c5a56; }
+    .wb-beats { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); display: none; gap: 10px; }
+    #stage.wb .wb-beats { display: flex; }
+    .wb-beats i { width: 12px; height: 12px; border-radius: 50%; background: #2a2927; transition: background 0.08s; }
+    .wb-beats i.lit { background: var(--go-bright); box-shadow: 0 0 10px rgba(139, 197, 64, 0.7); }
+    .wb-beats i.lit.down { background: var(--gold); box-shadow: 0 0 10px rgba(246, 196, 69, 0.7); }
+
+    /* ---------- Write Bars: voting and the scoreboard ---------- */
+    #vote-overlay.wb { overflow-y: auto; padding-bottom: 30px; }
+    #vote-overlay.wb .card { max-width: 640px; }
+    .wb-vote-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; text-align: left; }
+    .wb-entry { border: 1px solid var(--line); border-left: 4px solid var(--pc); border-radius: 8px; padding: 10px 12px; background: #111; }
+    .wb-entry-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .wb-entry-name { font-family: var(--street); font-size: 22px; line-height: 1.05; color: var(--pc); }
+    .wb-entry-tag { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .wb-entry ol { margin: 6px 0 0 20px; color: var(--ink); font-size: 15px; line-height: 1.35; }
+    .wb-entry ol li::marker { color: #6b6862; }
+    .wb-entry mark { background: none; color: var(--gold); }
+    .wb-entry .wb-empty { color: #5c5a56; }
+    .wb-entry .stars { justify-content: flex-start; margin: 6px 0 0; gap: 2px; }
+    .wb-entry .star { width: 44px; height: 44px; }
+    .standings { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+    .standing { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 8px; background: #111; border: 1px solid var(--line); border-left: 4px solid var(--pc); text-align: left; animation: pop-in 0.35s ease-out backwards; }
+    .standing .pl { font-family: var(--street); font-size: 22px; color: var(--pc); }
+    .standing .nm { font-family: var(--street); font-size: 20px; line-height: 1.05; overflow-wrap: anywhere; }
+    .standing .gain { color: var(--go-bright); font-size: 14px; white-space: nowrap; }
+    .standing .tot { font-family: var(--street); font-size: 24px; color: var(--gold); white-space: nowrap; }
+
     #debug-info {
       position: fixed; left: 8px; bottom: 8px; z-index: 60; margin: 0; padding: 6px 10px; max-width: calc(100vw / 0.9 - 16px);
       font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--go-bright); background: rgba(0, 0, 0, 0.8);
@@ -301,6 +401,10 @@
       .chip-p .name { display: none; }
       .slots { gap: 6px; }
       .slot .slot-name { font-size: 14px; }
+      .mode-opt b { font-size: 19px; }
+      .write-line { grid-template-columns: 1fr; gap: 2px; }
+      .write-line label b { display: inline; margin-left: 6px; }
+      .write-clock { font-size: 54px; }
     }
   </style>
 </head>
@@ -328,6 +432,11 @@
     <p class="hint" id="connecting-hint" style="display:none;">Connecting...</p>
 
     <div id="room-view" style="display:none;">
+      <div class="mode-pick" id="mode-pick" role="radiogroup" aria-label="Game mode">
+        <button type="button" class="mode-opt" data-mode="writebars" role="radio"><b>Write Bars</b><span>60 seconds to write 4 lines on your rhymes, then battle. 3 rounds.</span></button>
+        <button type="button" class="mode-opt" data-mode="freestyle" role="radio"><b>Freestyle</b><span>16 bars off the top over the beat. The room rates every turn.</span></button>
+      </div>
+      <p class="mode-note" id="mode-note"></p>
       <button class="btn" id="start-btn">Start Game</button>
       <button class="btn yellow" id="rejoin-btn" style="display:none;">Back to the show</button>
       <p class="wait-msg" id="wait-msg"></p>
@@ -363,6 +472,31 @@
       </div>
     </div>
 
+    <div class="write-view" id="write-view" hidden>
+      <div class="write-head">
+        <div class="write-round" id="write-round"></div>
+        <div class="write-clock" id="write-clock" aria-live="off">60</div>
+      </div>
+      <div class="card write-card" id="write-form">
+        <div class="write-pairs" id="write-pairs"></div>
+        <div id="write-lines"></div>
+        <p class="write-tip">Tip: end the line on the word. The words can go anywhere, in any line.</p>
+        <div class="voice-pick" role="radiogroup" aria-label="Who spits it?">
+          <span>Who spits it?</span>
+          <button type="button" class="voice-opt" data-voice="self" role="radio">I'll rap it myself</button>
+          <button type="button" class="voice-opt" data-voice="tts" role="radio">Robot voice (TTS)</button>
+        </div>
+        <button class="btn" id="write-done">Done</button>
+        <p class="write-status" id="write-status"></p>
+      </div>
+      <div class="card write-watch" id="write-watch" hidden>
+        <p class="kicker">Write Bars</p>
+        <p class="big-title">The rappers are writing...</p>
+        <p class="hint">Get ready to rate their bars.</p>
+      </div>
+      <div class="writers" id="writers"></div>
+    </div>
+
     <div id="stage">
       <div class="mic-line">
         <div class="mic-name" id="mic-name"></div>
@@ -371,6 +505,8 @@
       <div class="bars-wrap" id="bars-wrap">
         <div id="bars"></div>
         <canvas id="ball-canvas"></canvas>
+        <div class="wb-lines" id="wb-lines" aria-live="polite"></div>
+        <div class="wb-beats" id="wb-beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div class="count" id="count"></div>
         <div class="mic-drop" id="mic-drop">Mic drop!</div>
       </div>
@@ -394,6 +530,10 @@
             <div class="stars" id="stars" role="radiogroup" aria-label="Stars"></div>
             <button class="btn" id="vote-btn" disabled>Submit</button>
           </div>
+          <div id="wb-vote" hidden>
+            <div class="wb-vote-list" id="wb-vote-list"></div>
+            <button class="btn" id="wb-vote-btn" disabled>Submit</button>
+          </div>
           <p class="hint" id="vote-msg"></p>
           <div class="vote-progress"><div id="vote-timer"></div></div>
           <p class="vote-count" id="vote-count"></p>
@@ -407,6 +547,15 @@
           <p class="score-num" id="score-num"></p>
           <p class="score-stars" id="score-stars"></p>
           <p class="hint" id="score-votes"></p>
+        </div>
+      </div>
+
+      <div class="overlay" id="standings-overlay">
+        <div class="card">
+          <p class="kicker" id="standings-kicker">Scoreboard</p>
+          <p class="big-title" id="standings-title">Scoreboard</p>
+          <div class="standings" id="standings-table"></div>
+          <p class="hint" id="standings-next"></p>
         </div>
       </div>
 

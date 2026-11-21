@@ -13,6 +13,12 @@
   const BPB = Engine.BEATS_PER_BAR;
   const TOTAL_BEATS = BARS * BPB;
   const COUNT_WORDS = ['8', '7', '6', '5', '4', '3', '2', '1'];
+  const WB_LINES = Engine.WB_LINES;
+  const LINE_BEATS = Engine.WB_BARS_PER_LINE * BPB; // a Write Bars line lasts 2 bars
+  const MODE_LABELS = { writebars: 'Write Bars', freestyle: 'Freestyle' };
+  // ?debug&write=10: a 10-second write timer for testing (the default is 60).
+  const DEBUG_WRITE = DEBUG && PARAMS.has('write') ? Number(PARAMS.get('write')) || undefined : undefined;
+  const startOptions = () => (DEBUG_WRITE ? { writeSeconds: DEBUG_WRITE } : undefined);
   const SOLO_LEAD_MS = 800;
 
   const $ = (id) => document.getElementById(id);
@@ -22,7 +28,7 @@
     playerId: null,
     hostId: null,
     linkRoom: false, // entered via a link like /rapmates/mate: no room code UI
-    lobby: { players: [], crowd: [], started: false },
+    lobby: { players: [], crowd: [], started: false, mode: Engine.DEFAULT_MODE },
     game: null, // { round, order, results }
     phase: null, // the latest phase payload from the host
     over: null, // the latest results
@@ -38,6 +44,7 @@
   let ac = null;
   let sfxGain = null;
   let musicGain = null;
+  let duckGain = null; // dips the music while the robot voice raps
   const soundPrefs = (() => {
     const read = (k) => { try { return localStorage.getItem(`rapmates-${k}`) !== 'off'; } catch { return true; } };
     return { music: read('music'), sfx: read('sfx') };
@@ -54,8 +61,9 @@
       comp.connect(ac.destination);
       sfxGain = ac.createGain();
       musicGain = ac.createGain();
+      duckGain = ac.createGain();
       sfxGain.connect(comp);
-      musicGain.connect(comp);
+      musicGain.connect(duckGain).connect(comp);
       applySoundPrefs();
       ac.addEventListener('statechange', () => {
         if (ac.state === 'running' && stage.turn) anchorAudio();
@@ -118,6 +126,11 @@
     count(t, go) {
       tone(t, 'sine', go ? 1760 : 1175, go ? 1760 : 1175, 0.08, 0.5, 0.001);
       tone(t, 'triangle', go ? 880 : 587, go ? 880 : 587, 0.05, 0.25, 0.001);
+    },
+    // Write Bars panic ticker: a clock tick, louder and higher in the last 3 seconds.
+    tick(t, urgent) {
+      tone(t, 'square', urgent ? 1650 : 1250, urgent ? 1650 : 1250, 0.035, urgent ? 0.32 : 0.16, 0.001);
+      tone(t, 'triangle', urgent ? 820 : 620, urgent ? 820 : 620, 0.05, urgent ? 0.3 : 0.15, 0.001);
     },
     // Debug metronome: accent on bar downbeats.
     click(t, accent) {
@@ -326,7 +339,7 @@
 
   function applyLobby(payload) {
     state.hostId = payload.hostId;
-    state.lobby = { players: payload.players || [], crowd: payload.crowd || [], started: !!payload.started };
+    state.lobby = { players: payload.players || [], crowd: payload.crowd || [], started: !!payload.started, mode: payload.mode || Engine.DEFAULT_MODE };
     $('setup-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
@@ -334,7 +347,8 @@
     renderSlots();
     const count = state.lobby.players.length;
     const host = [...state.lobby.players, ...state.lobby.crowd].find((m) => m.id === state.hostId);
-    $('start-btn').textContent = `Start game with ${count} player${count === 1 ? '' : 's'}`;
+    $('start-btn').textContent = `Start ${MODE_LABELS[state.lobby.mode]} with ${count} player${count === 1 ? '' : 's'}`;
+    renderModePick();
     $('start-btn').style.display = isHost() && !state.lobby.started ? 'block' : 'none';
     $('rejoin-btn').style.display = state.lobby.started && state.away ? 'block' : 'none';
     let wait = '';
@@ -349,8 +363,29 @@
     updateResultsButtons();
   }
 
+  // The host picks the mode; everyone else sees it.
+  function renderModePick() {
+    const canPick = isHost() && !state.lobby.started;
+    document.querySelectorAll('.mode-opt').forEach((b) => {
+      const on = b.dataset.mode === state.lobby.mode;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+      b.disabled = !canPick;
+    });
+    $('mode-note').textContent = canPick ? '' : `Mode: ${MODE_LABELS[state.lobby.mode]} (the host picks)`;
+  }
+  document.querySelectorAll('.mode-opt').forEach((b) => b.addEventListener('click', () => {
+    if (!isHost() || state.lobby.started || b.dataset.mode === state.lobby.mode) return;
+    state.lobby.mode = b.dataset.mode;
+    renderModePick();
+    const count = state.lobby.players.length;
+    $('start-btn').textContent = `Start ${MODE_LABELS[state.lobby.mode]} with ${count} player${count === 1 ? '' : 's'}`;
+    net.emit('input', { type: 'mode', mode: b.dataset.mode });
+  }));
+
   function showLobby() {
     stopStage();
+    hideWrite();
     $('game-view').style.display = 'none';
     $('lobby-card').style.display = 'block';
     document.body.classList.remove('in-game');
@@ -377,7 +412,7 @@
     $('lobby-card').classList.remove('link-room');
     state.playerId = null;
     state.hostId = null;
-    state.lobby = { players: [], crowd: [], started: false };
+    state.lobby = { players: [], crowd: [], started: false, mode: Engine.DEFAULT_MODE };
     state.game = null;
     state.phase = null;
     state.away = false;
@@ -422,11 +457,11 @@
 
   $('start-btn').addEventListener('click', () => {
     getAudioCtx();
-    net.emit('startGame');
+    net.emit('startGame', startOptions());
   });
   $('again-btn').addEventListener('click', () => {
     getAudioCtx();
-    net.emit('startGame');
+    net.emit('startGame', startOptions());
   });
   $('rejoin-btn').addEventListener('click', () => {
     getAudioCtx();
@@ -540,7 +575,7 @@
   net.on('gameStarted', (payload) => {
     state.away = false;
     state.over = null;
-    state.game = { round: payload.round, order: payload.order, results: payload.results || [] };
+    state.game = { round: payload.round, order: payload.order, results: payload.results || [], mode: payload.mode || 'freestyle', totals: payload.totals || [] };
     loadTracks();
     applyLobby(payload);
     $('reconnect-hint').style.display = 'none';
@@ -557,8 +592,15 @@
 
   net.on('votes', (v) => {
     if (!state.phase || state.phase.phase !== 'vote' || v.turnIndex !== state.phase.turnIndex) return;
+    if (v.round !== undefined && v.round !== state.phase.wbRound) return;
     state.phase.votes = v;
     renderVoteCount();
+  });
+
+  net.on('writers', (d) => {
+    if (!state.phase || state.phase.phase !== 'write' || d.round !== state.phase.wbRound) return;
+    state.phase.writers = d.writers;
+    renderWriters();
   });
 
   net.on('gameOver', (over) => {
@@ -577,18 +619,28 @@
 
   function applyPhase(p, force = false) {
     state.phase = p;
+    if (state.game && p.totals) state.game.totals = p.totals;
     if (state.away || state.solo) return;
     if (p.phase === 'results') {
       if (state.over) showResults(state.over);
       return;
     }
+    if (p.phase === 'write') {
+      stopStage();
+      showWrite(p);
+      renderChips();
+      return;
+    }
+    hideWrite();
     if (p.turn && (force || !sameTurn(stage.turn, p.turn))) {
       setupTurn(p.turn, { solo: false });
     }
     renderChips();
     hideOverlays();
-    if (p.phase === 'vote') showVote(p);
+    if (p.phase === 'vote' && p.mode === 'writebars') showWbVote(p);
+    else if (p.phase === 'vote') showVote(p);
     else if (p.phase === 'score') showScore(p);
+    else if (p.phase === 'standings') showStandings(p);
   }
 
   function renderChips() {
@@ -603,8 +655,14 @@
       const chip = document.createElement('div');
       chip.className = `chip-p${p.id === rapperId ? ' on-mic' : ''}`;
       chip.style.setProperty('--pc', p.color);
-      const r = state.game.results.find((x) => x.id === p.id);
-      const score = r ? (r.average === null ? '–' : `${r.average.toFixed(1)}★`) : '';
+      let score = '';
+      if (state.game.mode === 'writebars') {
+        const t = (state.game.totals || []).find((x) => x.id === p.id);
+        if (t) score = `${t.total}★`;
+      } else {
+        const r = state.game.results.find((x) => x.id === p.id);
+        score = r ? (r.average === null ? '–' : `${r.average.toFixed(1)}★`) : '';
+      }
       chip.innerHTML = `<span class="dot">P${p.number}</span><span class="name">${esc(p.name)}${p.id === state.playerId ? ' (you)' : ''}</span>${score ? `<span class="score">${score}</span>` : ''}`;
       return chip;
     }));
@@ -654,6 +712,7 @@
   });
   window.addEventListener('keydown', (e) => {
     if (!$('vote-overlay').classList.contains('show') || e.target.tagName === 'INPUT') return;
+    if (state.phase && state.phase.mode === 'writebars') return;
     if (/^[1-5]$/.test(e.key)) pickStars(Number(e.key));
     else if (e.key === 'Enter' && !$('vote-btn').disabled) $('vote-btn').click();
   });
@@ -670,6 +729,8 @@
       playSfx('ding');
     }
     if (p.votes && p.votes.voted.includes(state.playerId)) state.voted = true;
+    $('vote-overlay').classList.remove('wb');
+    $('wb-vote').hidden = true;
     $('vote-title').textContent = isRapper ? 'The crowd is rating your bars...' : `How were ${p.turn.name}'s bars?`;
     $('vote-title').style.color = p.turn.color;
     $('vote-stars-wrap').style.display = isRapper ? 'none' : 'block';
@@ -688,6 +749,17 @@
     $('vote-btn').textContent = state.voted ? 'Submitted ✓' : 'Submit';
     if (state.voted) $('vote-btn').disabled = true;
   }
+  // Clocks that run whatever the stage is doing: the write timer and the vote timer bar.
+  setInterval(() => {
+    updateWriteClock();
+    const ph = state.phase;
+    if (ph && ph.phase === 'vote' && ph.voteEndsAt && $('vote-overlay').classList.contains('show')) {
+      const total = ph.voteMs || Engine.VOTE_SECONDS * 1000;
+      const left = Math.max(0, Math.min(1, (ph.voteEndsAt - net.hostNow()) / total));
+      $('vote-timer').style.transform = `scaleX(${left})`;
+    }
+  }, 50);
+
   function renderVoteCount() {
     const v = state.phase && state.phase.votes;
     if (!v) return;
@@ -714,6 +786,264 @@
     }
   }
 
+  // ---------- Write Bars: writing ----------
+  // Everyone writes at once against the host's clock. Drafts go to the host as you type, so whatever's
+  // written when the clock runs out is what gets performed.
+
+  const write = { key: null, lines: ['', '', '', ''], voice: 'tts', done: false, draftTimer: null, finalSent: false, lastTick: null };
+
+  // Escaped text with the rhyme words (anywhere in the line) wrapped in <mark>.
+  function markRhymes(text, words) {
+    if (!text) return '<span class="wb-empty">…</span>';
+    const alts = words.slice().sort((a, b) => b.length - a.length)
+      .map((w) => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'));
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${alts.join('|')})(?=$|[^\\p{L}\\p{N}])`, 'giu');
+    return esc(text).replace(re, (m, pre, w) => `${pre}<mark>${w}</mark>`);
+  }
+  // Lines 1-2 rhyme on pair A, lines 3-4 on pair B.
+  const targetWord = (pairs, i) => (pairs[Math.floor(i / 2)] || [])[i % 2] || '';
+
+  function writersOf(p) {
+    return p.writers || [];
+  }
+
+  function showWrite(p) {
+    $('stage').style.display = 'none';
+    $('write-view').hidden = false;
+    const mine = writersOf(p).find((w) => w.id === state.playerId);
+    const key = `${state.game.round}:${p.wbRound}`;
+    if (write.key !== key) {
+      write.key = key;
+      write.lines = ['', '', '', ''];
+      write.done = !!(mine && mine.done);
+      write.finalSent = false;
+      write.lastTick = null;
+      clearTimeout(write.draftTimer);
+      if (mine) buildWriteForm(mine.pairs);
+      playSfx('ding');
+    }
+    $('write-round').innerHTML = `Round <b>${p.wbRound}</b> / ${p.rounds} · ${mine ? 'write your bars' : 'writing time'}`;
+    $('write-form').hidden = !mine;
+    $('write-watch').hidden = !!mine;
+    renderWriteState();
+    renderWriters();
+    updateWriteClock();
+  }
+
+  function hideWrite() {
+    $('write-view').hidden = true;
+    $('stage').style.display = '';
+    $('write-clock').classList.remove('panic', 'fast');
+  }
+
+  function buildWriteForm(pairs) {
+    $('write-pairs').innerHTML = pairs.map((pair, i) => `<div class="write-pair"><small>Lines ${i * 2 + 1}–${i * 2 + 2}</small>`
+      + `<span>${esc(pair[0])}<i>/</i>${esc(pair[1])}</span></div>`).join('');
+    $('write-lines').replaceChildren(...[0, 1, 2, 3].map((i) => {
+      const row = document.createElement('div');
+      row.className = 'write-line';
+      const word = targetWord(pairs, i);
+      row.innerHTML = `<label for="write-${i}">Bar ${i + 1}<b>${esc(word)}</b></label>`
+        + `<input type="text" id="write-${i}" maxlength="${Engine.LINE_MAX}" autocomplete="off" autocapitalize="sentences" enterkeyhint="${i < 3 ? 'next' : 'done'}" placeholder="…ends on &quot;${esc(word)}&quot;">`;
+      const input = row.querySelector('input');
+      input.addEventListener('input', () => {
+        write.lines[i] = input.value;
+        queueDraft();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const next = $(`write-${i + 1}`);
+        if (next) next.focus();
+        else input.blur();
+      });
+      return row;
+    }));
+  }
+
+  function renderWriteState() {
+    document.querySelectorAll('.voice-opt').forEach((b) => {
+      const on = b.dataset.voice === write.voice;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+      b.disabled = write.done;
+    });
+    $('write-lines').querySelectorAll('input').forEach((input) => { input.disabled = write.done; });
+    $('write-done').disabled = write.done;
+    $('write-done').textContent = write.done ? 'Locked in ✓' : 'Done';
+  }
+
+  function renderWriters() {
+    const p = state.phase;
+    if (!p || p.phase !== 'write') return;
+    const writers = writersOf(p);
+    $('writers').innerHTML = writers.map((w) => `<span class="writer${w.done ? ' done' : ''}" style="--pc:${w.color}">${esc(w.id === state.playerId ? 'You' : w.name)}</span>`).join('');
+    const left = writers.filter((w) => !w.done).length;
+    $('write-status').textContent = write.done ? (left ? `Locked in. Waiting for ${left} more...` : 'Locked in!') : '';
+  }
+
+  function sendDraft(type = 'draft') {
+    clearTimeout(write.draftTimer);
+    write.draftTimer = null;
+    net.emit('input', { type, lines: write.lines.slice(), voice: write.voice });
+  }
+  function queueDraft() {
+    if (write.done) return;
+    clearTimeout(write.draftTimer);
+    write.draftTimer = setTimeout(() => sendDraft(), 300);
+  }
+
+  document.querySelectorAll('.voice-opt').forEach((b) => b.addEventListener('click', () => {
+    if (write.done) return;
+    write.voice = b.dataset.voice;
+    renderWriteState();
+    queueDraft();
+  }));
+  $('write-done').addEventListener('click', () => {
+    const p = state.phase;
+    if (write.done || !p || p.phase !== 'write') return;
+    write.done = true;
+    sendDraft('done');
+    playSfx('submit');
+    renderWriteState();
+    renderWriters();
+  });
+
+  // The big clock: red and pulsing from 10 seconds, with a tick every second (twice a second, louder,
+  // for the last 3). At 0 whatever's written goes to the host.
+  function updateWriteClock() {
+    const p = state.phase;
+    if (!p || p.phase !== 'write' || $('write-view').hidden) return;
+    const left = p.writeEndsAt - net.hostNow();
+    const secs = Math.max(0, Math.ceil(left / 1000));
+    $('write-clock').textContent = secs;
+    const panic = left > 0 && left <= 10000;
+    $('write-clock').classList.toggle('panic', panic);
+    $('write-clock').classList.toggle('fast', panic && left <= 3000);
+    if (panic) {
+      const urgent = left <= 3000;
+      const mark = urgent ? `h${Math.ceil(left / 500)}` : `s${secs}`;
+      if (mark !== write.lastTick) {
+        write.lastTick = mark;
+        if (ac && ac.state === 'running') sfx.tick(ac.currentTime, urgent);
+      }
+    }
+    if (left <= 0 && !write.finalSent) {
+      write.finalSent = true;
+      if (!write.done && writersOf(p).some((w) => w.id === state.playerId)) {
+        sendDraft();
+        write.done = true;
+        renderWriteState();
+        $('write-status').textContent = "Time's up! Your bars are in.";
+      }
+    }
+  }
+
+  // ---------- Write Bars: voting and the scoreboard ----------
+
+  function showWbVote(p) {
+    const key = `${state.game.round}:wb${p.wbRound}`;
+    if (state.voteTurn !== key) {
+      state.voteTurn = key;
+      state.wbStars = {};
+      state.voted = false;
+      playSfx('ding');
+    }
+    if (p.votes && p.votes.voted.includes(state.playerId)) state.voted = true;
+    const rateable = p.performances.filter((x) => x.id !== state.playerId);
+    $('vote-overlay').classList.add('wb');
+    $('vote-stars-wrap').style.display = 'none';
+    $('wb-vote').hidden = false;
+    $('vote-title').textContent = `Round ${p.wbRound}: who spat it best?`;
+    $('vote-title').style.color = '';
+    $('wb-vote-list').replaceChildren(...p.performances.map((x) => {
+      const mine = x.id === state.playerId;
+      const words = x.pairs.flat();
+      const card = document.createElement('div');
+      card.className = 'wb-entry';
+      card.style.setProperty('--pc', x.color);
+      card.innerHTML = `<div class="wb-entry-head"><span class="wb-entry-name">${esc(mine ? `${x.name} (You)` : x.name)}</span>`
+        + `<span class="wb-entry-tag">${x.voice === 'self' ? 'Rapped live' : 'Robot voice'}</span></div>`
+        + `<ol>${x.lines.map((l) => `<li>${markRhymes(l, words)}</li>`).join('')}</ol>`;
+      if (!mine) {
+        const stars = document.createElement('div');
+        stars.className = 'stars';
+        stars.setAttribute('role', 'radiogroup');
+        stars.setAttribute('aria-label', `Stars for ${x.name}`);
+        stars.replaceChildren(...[1, 2, 3, 4, 5].map((n) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'star';
+          b.dataset.n = n;
+          b.setAttribute('role', 'radio');
+          b.setAttribute('aria-label', `${n} star${n > 1 ? 's' : ''}`);
+          b.innerHTML = STAR_SVG;
+          b.addEventListener('click', () => {
+            if (state.voted) return;
+            state.wbStars[x.id] = n;
+            paintStars(stars, n, true);
+            playSfx('star', n);
+            renderWbVoteState();
+          });
+          return b;
+        }));
+        paintStars(stars, state.wbStars[x.id] || 0, false);
+        card.append(stars);
+      }
+      return card;
+    }));
+    state.wbRateable = rateable.map((x) => x.id);
+    renderWbVoteState();
+    renderVoteCount();
+    $('vote-overlay').classList.add('show');
+  }
+  function paintStars(group, n, pop) {
+    group.querySelectorAll('.star').forEach((s) => {
+      const on = Number(s.dataset.n) <= n;
+      s.classList.toggle('on', on);
+      s.classList.remove('pop');
+      if (on && pop) { void s.offsetWidth; s.classList.add('pop'); }
+      s.setAttribute('aria-checked', String(Number(s.dataset.n) === n));
+    });
+  }
+  function renderWbVoteState() {
+    const ids = state.wbRateable || [];
+    const rated = ids.filter((id) => state.wbStars[id]).length;
+    let msg = `Rate every performance (${rated} of ${ids.length}), then submit.`;
+    if (!ids.length) msg = 'Nobody else to rate. Sit tight!';
+    else if (state.voted) msg = 'Votes in! Waiting for everyone else...';
+    $('vote-msg').textContent = msg;
+    $('wb-vote-btn').style.display = ids.length ? 'block' : 'none';
+    $('wb-vote-btn').disabled = state.voted || rated < ids.length;
+    $('wb-vote-btn').textContent = state.voted ? 'Submitted ✓' : 'Submit';
+  }
+  $('wb-vote-btn').addEventListener('click', () => {
+    const p = state.phase;
+    if (state.voted || !p || p.phase !== 'vote' || p.mode !== 'writebars') return;
+    state.voted = true;
+    net.emit('input', { type: 'votes', stars: { ...state.wbStars }, round: p.wbRound });
+    playSfx('submit');
+    renderWbVoteState();
+  });
+
+  function showStandings(p) {
+    const last = p.wbRound >= p.rounds;
+    $('standings-kicker').textContent = `Round ${p.wbRound} of ${p.rounds}`;
+    $('standings-title').textContent = last ? 'Final scores' : 'Scoreboard';
+    $('standings-table').innerHTML = p.roundResults.map((r, i) => `<div class="standing" style="--pc:${r.color};animation-delay:${0.08 * i}s">`
+      + `<span class="pl">${i + 1}</span><span class="nm">${esc(r.id === state.playerId ? `${r.name} (You)` : r.name)}</span>`
+      + `<span class="gain">+${r.stars} ★</span><span class="tot">${r.total} ★</span></div>`).join('')
+      || '<p class="hint">Nobody performed this round.</p>';
+    $('standings-next').textContent = last ? 'And the winner is...' : `Round ${p.wbRound + 1} is next: fresh rhymes, the clock starts again.`;
+    $('standings-overlay').classList.add('show');
+    const key = `${state.game.round}:st${p.wbRound}`;
+    if (state.standingsShown !== key) {
+      state.standingsShown = key;
+      const best = p.roundResults.length ? Math.max(...p.roundResults.map((r) => (r.votes ? r.stars / r.votes : 0))) : 0;
+      playSfx('cheer', best || 2);
+    }
+  }
+
   // ---------- Results ----------
 
   function updateResultsButtons() {
@@ -722,7 +1052,9 @@
     $('results-wait').textContent = isHost() ? '' : `${host ? host.name : 'The host'} can start another round.`;
   }
 
-  function showResults({ standings, winnerIds }) {
+  function showResults({ standings, winnerIds, mode }) {
+    const wb = mode === 'writebars';
+    const scoreOf = (r) => (wb ? r.total : r.average);
     stopStage();
     hideOverlays();
     const winners = standings.filter((r) => winnerIds.includes(r.id));
@@ -732,7 +1064,7 @@
     else if (winners.length > 1) title = `It's a tie! ${winners.map(nameOf).join(' & ')} share the mic!`;
     $('results-title').textContent = title;
     // Places: ties share a place.
-    const places = standings.map((r, i) => (i && r.average === standings[i - 1].average ? null : i + 1));
+    const places = standings.map((r, i) => (i && scoreOf(r) === scoreOf(standings[i - 1]) ? null : i + 1));
     for (let i = 1; i < places.length; i++) if (places[i] === null) places[i] = places[i - 1];
     const ranked = standings.map((r, i) => ({ ...r, place: places[i] }));
     const display = ranked.length >= 2 ? [ranked[1], ranked[0], ...ranked.slice(2)] : ranked;
@@ -745,7 +1077,7 @@
       step.innerHTML = `<svg class="avatar" viewBox="0 0 100 120" aria-hidden="true">${micSvg(r.color, { chain: r.place === 1 })}</svg>`
         + `<span class="who">${esc(nameOf(r))}</span>`
         + `<div class="block" style="height:${HEIGHTS[r.place] || 60}px"><span class="place">${r.place}</span>`
-        + `<span class="avg">${r.average === null ? 'no votes' : `${r.average.toFixed(1)} ★`}</span></div>`;
+        + `<span class="avg">${wb ? `${r.total} ★` : r.average === null ? 'no votes' : `${r.average.toFixed(1)} ★`}</span></div>`;
       return step;
     }));
     updateResultsButtons();
@@ -839,6 +1171,15 @@
     trail: [],
     raf: null,
     soloDone: false,
+    wb: false, // a Write Bars performance: lines instead of bar rows
+    rapBars: BARS,
+    rapBeats: TOTAL_BEATS,
+    wbLine: -1,
+    wbBeat: null,
+    lineEls: [],
+    lineLog: [], // ?debug: when each line appeared vs its bar
+    ttsTimers: [],
+    ttsQueued: [],
   };
   const canvas = $('ball-canvas');
   const cctx = canvas.getContext('2d');
@@ -882,6 +1223,11 @@
     stage.bpm = track.bpm;
     stage.beatSec = 60 / track.bpm;
     stage.introBeats = track.introBars * BPB;
+    stage.wb = turn.mode === 'writebars';
+    stage.rapBars = turn.rapBars || BARS;
+    stage.rapBeats = stage.rapBars * BPB;
+    $('stage').classList.toggle('wb', stage.wb);
+    if (stage.wb) return setupPerformance(turn, track);
     stage.bars = Words.buildBars(turn.pairs);
     stage.currentBar = -1;
     stage.lastBeat = null;
@@ -917,7 +1263,138 @@
     stage.raf = requestAnimationFrame(frame);
   }
 
+  // Write Bars: the performer's 4 lines on the plain brick, each appearing on its bar.
+  function setupPerformance(turn, track) {
+    stage.currentBar = -1;
+    stage.countShown = null;
+    stage.ended = false;
+    stage.wbLine = -1;
+    stage.wbBeat = null;
+    stage.lineLog = [];
+    stage.ttsQueued = [];
+    const words = turn.pairs.flat();
+    stage.lineEls = turn.lines.map((text, i) => {
+      const el = document.createElement('div');
+      el.className = 'wb-line';
+      el.dataset.k = i + 1;
+      el.innerHTML = markRhymes(text, words);
+      return el;
+    });
+    $('wb-lines').replaceChildren(...stage.lineEls);
+    $('wb-beats').querySelectorAll('i').forEach((d) => d.classList.remove('lit', 'down'));
+    $('mic-drop').style.display = 'none';
+    $('count').className = 'count';
+    const isMe = turn.rapperId === state.playerId;
+    const micName = $('mic-name');
+    micName.style.setProperty('--pc', turn.color);
+    micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
+    $('ready-kicker').textContent = `Round ${turn.wbRound} · ${turn.perf + 1} of ${turn.perfs}`;
+    $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
+    $('ready-name').textContent = turn.name;
+    $('ready-name').style.setProperty('--pc', turn.color);
+    $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
+    $('ready-beat').textContent = trackLabel(track);
+    const tts = turn.voice !== 'self';
+    const voice = tts ? pickVoice(turn.voiceGender) : null;
+    if (!tts) $('game-hint').textContent = isMe ? 'Rap each line as it appears: 2 bars a line.' : `${turn.name} spits it live`;
+    else if (!window.speechSynthesis) $('game-hint').textContent = 'Robot voice not available on this device: read along!';
+    else $('game-hint').textContent = `Robot voice${voice ? `: ${voice.name}` : ''}. Each line drops on the beat.`;
+    stage.geometry = null;
+    anchorAudio();
+    scheduleSpeech(); // also when the beat can't play yet (anchorAudio bails out)
+    stage.raf = requestAnimationFrame(frame);
+  }
+
+  // ---------- Robot voice (speechSynthesis) ----------
+  // The browser's own text-to-speech, on every screen in the room. Voices alternate male / female down
+  // the order (the host decides which); each browser picks the closest English voice it has.
+  const VOICE_PREFS = {
+    male: ['Google UK English Male', 'Daniel', 'Alex', 'Aaron', 'Arthur', 'Fred', 'Rishi', 'Microsoft Guy', 'Microsoft David', 'Microsoft Mark', 'Male'],
+    female: ['Google UK English Female', 'Samantha', 'Karen', 'Victoria', 'Moira', 'Tessa', 'Microsoft Aria', 'Microsoft Jenny', 'Microsoft Zira', 'Google US English', 'Female'],
+  };
+  const MALE_HINT = /\b(male|daniel|alex|aaron|arthur|fred|rishi|guy|david|mark|george|james|tom|oliver|lee|reed|ralph|gordon|eddy|rocko)\b/i;
+  const FEMALE_HINT = /\b(female|samantha|karen|victoria|moira|tessa|aria|jenny|zira|susan|hazel|serena|fiona|kate|allison|ava|nicky|catherine|martha|libby|sonia|shelley|flo|sandy|google us english)\b/i;
+  // macOS novelty voices: fun, but not for reading bars.
+  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|hysterical)\b/i;
+  let voices = [];
+  function loadVoices() {
+    if (window.speechSynthesis) voices = window.speechSynthesis.getVoices() || [];
+  }
+  if (window.speechSynthesis) {
+    loadVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+  }
+  function pickVoice(gender) {
+    if (!voices.length) loadVoices();
+    const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang) && !NOVELTY.test(v.name));
+    const wants = gender === 'female' ? FEMALE_HINT : MALE_HINT;
+    const avoid = gender === 'female' ? MALE_HINT : FEMALE_HINT;
+    for (const name of VOICE_PREFS[gender] || []) {
+      const v = en.find((x) => x.name.toLowerCase().includes(name.toLowerCase()) && !(name.length < 7 && avoid.test(x.name)));
+      if (v) return v;
+    }
+    return en.find((v) => wants.test(v.name) && !avoid.test(v.name)) || en.find((v) => !avoid.test(v.name)) || en[0] || null;
+  }
+  const ttsLog = [];
+  function duck(on) {
+    if (!duckGain || !ac) return;
+    duckGain.gain.setTargetAtTime(on ? 0.6 : 1, ac.currentTime, 0.08);
+  }
+  // Each line's voice is timed off the beat clock with timers (not animation frames, so it still
+  // speaks in a background tab): a rough timer to just before the bar, then a precise one onto it.
+  // Rescheduled whenever the beat is re-anchored.
+  function scheduleSpeech() {
+    stage.ttsTimers.forEach((t) => clearTimeout(t));
+    stage.ttsTimers = [];
+    if (!stage.wb || !stage.turn || stage.turn.voice === 'self' || !window.speechSynthesis) return;
+    const msTo = (k) => (k * LINE_BEATS - beatPos()) * stage.beatSec * 1000;
+    for (let k = 0; k < WB_LINES; k++) {
+      if (stage.ttsQueued[k]) continue;
+      const turn = stage.turn;
+      stage.ttsTimers.push(setTimeout(() => {
+        if (stage.turn !== turn || stage.ttsQueued[k]) return;
+        const ahead = msTo(k);
+        if (ahead < -stage.beatSec * 1000) return; // joined too late for this line
+        stage.ttsTimers.push(setTimeout(() => {
+          if (stage.turn !== turn || stage.ttsQueued[k]) return;
+          stage.ttsQueued[k] = true;
+          speakLine(k);
+        }, Math.max(0, ahead)));
+      }, Math.max(0, msTo(k) - 300)));
+    }
+  }
+
+  function speakLine(k) {
+    const synth = window.speechSynthesis;
+    const turn = stage.turn;
+    if (!synth || !turn || !stage.wb) return;
+    synth.cancel();
+    const text = turn.lines[k];
+    if (!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = pickVoice(turn.voiceGender);
+    if (voice) {
+      u.voice = voice;
+      u.lang = voice.lang;
+    }
+    // A line has 2 bars (~5.3 s at 90 BPM): speed up long ones.
+    const words = text.split(/\s+/).filter(Boolean).length;
+    u.rate = Math.min(1.5, 1.05 + Math.max(0, words - 9) * 0.06);
+    u.onstart = () => duck(true);
+    u.onend = () => duck(false);
+    u.onerror = () => duck(false);
+    synth.speak(u);
+    ttsLog.push({ k: k + 1, text, gender: turn.voiceGender, voice: voice ? voice.name : '(default)', rate: u.rate, beat: beatPos(), at: performance.now() });
+  }
+  function stopSpeech() {
+    stage.ttsTimers.forEach((t) => clearTimeout(t));
+    stage.ttsTimers = [];
+    if (stage.wb && window.speechSynthesis) window.speechSynthesis.cancel();
+    duck(false);
+  }
+
   function stopStage() {
+    stopSpeech();
     if (stage.raf) cancelAnimationFrame(stage.raf);
     stage.raf = null;
     stopTrack(0.25);
@@ -961,7 +1438,7 @@
     // audioNow() is what's coming out of the speakers; schedule ahead by the output latency so the
     // track is heard right on time.
     const start = stage.audioStart + Math.max(0, a.currentTime - audioNow());
-    const fadeT = start + Tracks.fadeAt(track);
+    const fadeT = start + Tracks.fadeAt(track, stage.turn.fadeAfterBars);
     if (a.currentTime >= fadeT + Tracks.FADE_SEC) return;
     const gain = a.createGain();
     gain.connect(musicGain);
@@ -986,7 +1463,7 @@
       if (stage.audio !== audio) return;
       const synth = Beats.createBeat(a, gain, track.bpm < 100 ? 'boombap' : 'trap', { bpm: track.bpm, introBars: track.introBars });
       synth.start(start);
-      synth.stop(start + Tracks.turnSeconds(track), false, 0.6);
+      synth.stop(start + Tracks.turnSeconds(track, stage.rapBars), false, 0.6);
       audio.synth = synth;
     };
     const pending = trackBuffers.get(track.id);
@@ -999,12 +1476,13 @@
       if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
     }
     if (DEBUG_CLICK) {
-      const beats = (track.introBars + track.rapBars) * BPB;
+      const beats = (track.introBars + stage.rapBars) * BPB;
       for (let k = 0; k < beats; k++) {
         const t = start + k * stage.beatSec;
         if (t > a.currentTime) sfx.click(t, k % BPB === 0);
       }
     }
+    scheduleSpeech();
   }
 
   // Beats since the first rap bar started (negative during the intro).
@@ -1138,10 +1616,10 @@
     stage.raf = requestAnimationFrame(frame);
     if (!stage.turn) return;
     // A better clock estimate arrived mid-turn (e.g. just joined): line the beat up again.
-    if (!stage.solo && Math.abs(net.clockOffset - stage.anchoredOffset) > 40 && beatPos() < TOTAL_BEATS - 4) anchorAudio();
+    if (!stage.solo && Math.abs(net.clockOffset - stage.anchoredOffset) > 40 && beatPos() < stage.rapBeats - 4) anchorAudio();
     const p = beatPos();
 
-    $('ready-overlay').classList.toggle('show', p < -COUNT_IN && !$('vote-overlay').classList.contains('show') && !$('score-overlay').classList.contains('show'));
+    $('ready-overlay').classList.toggle('show', p < -COUNT_IN && !['vote-overlay', 'score-overlay', 'standings-overlay'].some((id) => $(id).classList.contains('show')));
 
     // Count-in: 8 down to 1 over the last two intro bars.
     if (p >= -COUNT_IN && p < 0) {
@@ -1157,6 +1635,49 @@
       }
     }
 
+    if (stage.wb) performanceFrame(p);
+    else freestyleFrame(p, now);
+    const done = p >= stage.rapBeats;
+    if (done !== stage.ended) {
+      stage.ended = done;
+      $('mic-drop').style.display = done ? 'flex' : 'none';
+      if (done && p < stage.rapBeats + 2) playClap();
+    }
+    if (DEBUG) showDebugInfo(p);
+    if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + 1.5) {
+      stage.soloDone = true;
+      $('solo-overlay').classList.add('show');
+    }
+  }
+
+  // Write Bars: line k (0-3) drops on the downbeat of performance bar 2k + 1, with the robot voice on it.
+  function performanceFrame(p) {
+    const line = p < 0 ? -1 : Math.min(WB_LINES - 1, Math.floor(p / LINE_BEATS));
+    if (line !== stage.wbLine && p < stage.rapBeats) {
+      stage.wbLine = line;
+      stage.lineEls.forEach((el, i) => {
+        el.classList.toggle('shown', i <= line);
+        el.classList.toggle('current', i === line);
+      });
+      if (line >= 0) stage.lineLog.push({ k: line + 1, lateMs: Math.round((p - line * LINE_BEATS) * stage.beatSec * 1000 * 10) / 10, audio: !!stage.audioStart });
+    }
+    if (p >= stage.rapBeats && stage.wbLine !== 'done') {
+      stage.wbLine = 'done';
+      stage.lineEls.forEach((el) => { el.classList.add('shown'); el.classList.remove('current'); });
+    }
+    const beatIdx = p < 0 || p >= stage.rapBeats ? null : Math.floor(p);
+    if (beatIdx !== stage.wbBeat) {
+      stage.wbBeat = beatIdx;
+      $('wb-beats').querySelectorAll('i').forEach((d, j) => {
+        d.classList.toggle('lit', beatIdx !== null && j <= beatIdx % BPB);
+        d.classList.toggle('down', beatIdx !== null && j === 0);
+      });
+    }
+    const introBar = Math.floor((p + stage.introBeats) / BPB) + 1;
+    $('bar-count').innerHTML = p < 0 ? `Intro <b>${Math.max(1, introBar)}</b> / ${stage.track.introBars}` : p < stage.rapBeats ? `Line <b>${line + 1}</b> / ${WB_LINES}` : `<b>${WB_LINES}</b> / ${WB_LINES}`;
+  }
+
+  function freestyleFrame(p, now) {
     const bar = p < 0 ? 0 : Math.min(BARS, Math.floor(p / BPB));
     if (bar !== stage.currentBar) updateRows(bar);
     const beatIdx = p < 0 ? null : Math.floor(p);
@@ -1176,23 +1697,7 @@
 
     const introBar = Math.floor((p + stage.introBeats) / BPB) + 1;
     $('bar-count').innerHTML = p < 0 ? `Intro <b>${Math.max(1, introBar)}</b> / ${stage.track.introBars}` : p < TOTAL_BEATS ? `Bar <b>${bar + 1}</b> / ${BARS}` : `<b>${BARS}</b> / ${BARS}`;
-    const done = p >= TOTAL_BEATS;
-    if (done !== stage.ended) {
-      stage.ended = done;
-      $('mic-drop').style.display = done ? 'flex' : 'none';
-      if (done && p < TOTAL_BEATS + 2) playClap();
-    }
     drawBall(p, now);
-    if (DEBUG) showDebugInfo(p);
-    const ph = state.phase;
-    if (ph && ph.phase === 'vote' && ph.voteEndsAt && $('vote-overlay').classList.contains('show')) {
-      const left = Math.max(0, Math.min(1, (ph.voteEndsAt - net.hostNow()) / (Engine.VOTE_SECONDS * 1000)));
-      $('vote-timer').style.transform = `scaleX(${left})`;
-    }
-    if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + 1.5) {
-      stage.soloDone = true;
-      $('solo-overlay').classList.add('show');
-    }
   }
 
   // ?debug: the track's timing on screen (add &click for a metronome over the track).
@@ -1204,12 +1709,13 @@
     const beat = Math.floor(((p % BPB) + BPB) % BPB) + 1;
     const pending = trackBuffers.get(t.id);
     const source = stage.audio && stage.audio.synth ? 'synth fallback' : pending && pending.buffer ? 'mp3' : 'loading';
-    el.textContent = `${t.name} (${t.id}) · ${t.bpm} BPM · offset ${t.offset}s · skipBars ${t.skipBars} · fadeAfterBars ${t.fadeAfterBars}\n`
+    const fadeAfter = (stage.turn && stage.turn.fadeAfterBars) || t.fadeAfterBars;
+    el.textContent = `${t.name} (${t.id}) · ${t.bpm} BPM · offset ${t.offset}s · skipBars ${t.skipBars} · fadeAfterBars ${fadeAfter}${stage.wb ? ' · Write Bars' : ''}\n`
       + `track bar ${trackBar} beat ${beat} · rap pos ${p.toFixed(2)} beats · ${source}${DEBUG_CLICK ? ' · click on' : ' · add &click for a metronome'}`;
   }
 
   // Debug aid: ?debug exposes the client state.
-  if (DEBUG) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx, trackBuffers };
+  if (DEBUG) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx, trackBuffers, ttsLog, pickVoice, write };
 
   buildSlots();
   renderSlots();
