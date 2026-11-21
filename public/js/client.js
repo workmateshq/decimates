@@ -1291,7 +1291,7 @@
     $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
     $('ready-beat').textContent = trackLabel(track);
     const tts = turn.voice !== 'self';
-    const voice = tts ? pickVoice(turn.voiceGender) : null;
+    const voice = tts ? pickVoice(turn.voiceGender, turn.voiceAccent) : null;
     if (!tts) $('game-hint').textContent = isMe ? 'Rap each line as it appears: 2 bars a line.' : `${turn.name} spits it live`;
     else if (!window.speechSynthesis) $('game-hint').textContent = 'Robot voice not available on this device: read along!';
     else $('game-hint').textContent = `Robot voice${voice ? `: ${voice.name}` : ''}. Each line drops on the beat.`;
@@ -1302,16 +1302,27 @@
   }
 
   // ---------- Robot voice (speechSynthesis) ----------
-  // The browser's own text-to-speech, on every screen in the room. Voices alternate male / female down
-  // the order (the host decides which); each browser picks the closest English voice it has.
+  // The browser's own text-to-speech, on every screen in the room. The host picks each performance's
+  // voice gender and accent (UK, Australian or American); each browser picks its closest voice.
   const VOICE_PREFS = {
-    male: ['Google UK English Male', 'Daniel', 'Alex', 'Aaron', 'Arthur', 'Fred', 'Rishi', 'Microsoft Guy', 'Microsoft David', 'Microsoft Mark', 'Male'],
-    female: ['Google UK English Female', 'Samantha', 'Karen', 'Victoria', 'Moira', 'Tessa', 'Microsoft Aria', 'Microsoft Jenny', 'Microsoft Zira', 'Google US English', 'Female'],
+    GB: {
+      male: ['Daniel', 'Arthur', 'Google UK English Male', 'Microsoft Ryan', 'Microsoft George', 'Microsoft Thomas', 'Oliver'],
+      female: ['Martha', 'Serena', 'Kate', 'Google UK English Female', 'Microsoft Sonia', 'Microsoft Libby', 'Microsoft Hazel', 'Stephanie'],
+    },
+    AU: {
+      male: ['Gordon', 'Lee', 'Microsoft William', 'Microsoft Darren', 'James'],
+      female: ['Karen', 'Catherine', 'Microsoft Natasha', 'Microsoft Annette', 'Microsoft Freya'],
+    },
+    US: {
+      male: ['Aaron', 'Alex', 'Fred', 'Ralph', 'Microsoft Guy', 'Microsoft David', 'Microsoft Mark', 'Microsoft Christopher', 'Evan', 'Tom'],
+      female: ['Samantha', 'Nicky', 'Microsoft Aria', 'Microsoft Jenny', 'Microsoft Zira', 'Ava', 'Allison', 'Susan', 'Google US English'],
+    },
   };
+  const ACCENT_LANG = { GB: /^en[-_]GB/i, AU: /^en[-_]AU/i, US: /^en[-_]US/i };
   const MALE_HINT = /\b(male|daniel|alex|aaron|arthur|fred|rishi|guy|david|mark|george|james|tom|oliver|lee|reed|ralph|gordon|eddy|rocko)\b/i;
   const FEMALE_HINT = /\b(female|samantha|karen|victoria|moira|tessa|aria|jenny|zira|susan|hazel|serena|fiona|kate|allison|ava|nicky|catherine|martha|libby|sonia|shelley|flo|sandy|google us english)\b/i;
   // macOS novelty voices: fun, but not for reading bars.
-  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|hysterical)\b/i;
+  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|hysterical|grandma|grandpa|junior)\b/i;
   let voices = [];
   function loadVoices() {
     if (window.speechSynthesis) voices = window.speechSynthesis.getVoices() || [];
@@ -1320,13 +1331,24 @@
     loadVoices();
     window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
   }
-  function pickVoice(gender) {
+  function pickVoice(gender, accent) {
     if (!voices.length) loadVoices();
     const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang) && !NOVELTY.test(v.name));
     const wants = gender === 'female' ? FEMALE_HINT : MALE_HINT;
     const avoid = gender === 'female' ? MALE_HINT : FEMALE_HINT;
-    for (const name of VOICE_PREFS[gender] || []) {
-      const v = en.find((x) => x.name.toLowerCase().includes(name.toLowerCase()) && !(name.length < 7 && avoid.test(x.name)));
+    const byName = (pool, prefs) => {
+      for (const name of prefs) {
+        const v = pool.find((x) => x.name.toLowerCase().includes(name.toLowerCase()) && !(name.length < 7 && avoid.test(x.name)));
+        if (v) return v;
+      }
+      return null;
+    };
+    // The accent first (by name, then any voice in that accent that isn't the other gender), then any accent.
+    const order = ACCENT_LANG[accent] ? [accent, ...Object.keys(ACCENT_LANG).filter((a) => a !== accent)] : Object.keys(ACCENT_LANG);
+    for (const a of order) {
+      const local = en.filter((v) => ACCENT_LANG[a].test(v.lang));
+      const v = byName(local, VOICE_PREFS[a][gender] || []) || local.find((x) => wants.test(x.name) && !avoid.test(x.name))
+        || (a === order[0] ? local.find((x) => !avoid.test(x.name)) : null);
       if (v) return v;
     }
     return en.find((v) => wants.test(v.name) && !avoid.test(v.name)) || en.find((v) => !avoid.test(v.name)) || en[0] || null;
@@ -1372,7 +1394,7 @@
       return;
     }
     const u = new SpeechSynthesisUtterance(text);
-    const voice = pickVoice(turn.voiceGender);
+    const voice = pickVoice(turn.voiceGender, turn.voiceAccent);
     if (voice) {
       u.voice = voice;
       u.lang = voice.lang;
@@ -1385,7 +1407,7 @@
     u.onend = () => { if (k === WB_LINES - 1 || stage.turn !== turn) duck(false); };
     u.onerror = u.onend;
     synth.speak(u);
-    ttsLog.push({ k: k + 1, text, gender: turn.voiceGender, voice: voice ? voice.name : '(default)', rate: u.rate, beat: beatPos(), at: performance.now() });
+    ttsLog.push({ k: k + 1, text, gender: turn.voiceGender, accent: turn.voiceAccent, voice: voice ? voice.name : '(default)', rate: u.rate, beat: beatPos(), at: performance.now() });
   }
   function stopSpeech() {
     stage.ttsTimers.forEach((t) => clearTimeout(t));

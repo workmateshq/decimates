@@ -34,6 +34,7 @@
   const WB_PAIRS = 2; // per rapper per round: lines 1-2 use pair A, lines 3-4 pair B
   const WB_BARS_PER_LINE = 2;
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
+  const VOICE_ACCENTS = ['GB', 'AU', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
   const WB_GAP_MS = 3000; // after a performance: the golf clap while the track fades
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer
@@ -503,7 +504,8 @@
         rapperId: id, startAt, endAt: startAt + turnLengthMs(track, WB_RAP_BARS), trackId: track.id, bpm: track.bpm,
         mode: 'writebars', rapBars: WB_RAP_BARS, fadeAfterBars: track.introBars + WB_RAP_BARS,
         lines: entry.lines.slice(), pairs: entry.pairs.map((pair) => pair.slice()), voice: entry.voice,
-        voiceGender: index % 2 === 0 ? 'male' : 'female', perf: index, perfs: wb.queue.length, wbRound: wb.round,
+        voiceGender: index % 2 === 0 ? 'male' : 'female',
+        voiceAccent: VOICE_ACCENTS[Math.floor(this.random() * VOICE_ACCENTS.length)], perf: index, perfs: wb.queue.length, wbRound: wb.round,
       };
       this.phase = 'turn';
       this.broadcast('phase', this.phasePayload());
@@ -603,6 +605,7 @@
 
   return {
     GameRoom,
+    VOICE_ACCENTS,
     generateRoomCode,
     standingsOf,
     totalsStandingsOf,
