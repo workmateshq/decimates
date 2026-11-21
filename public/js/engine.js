@@ -47,7 +47,7 @@
   // the gender), handed out at random (unique within a room).
   const MALE_NAMES = [
     'Gucci Lane', 'Drape', 'Piggie', 'Juicy Jam', 'Killer Bike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
-    'Lil Pain', 'Pizza', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Rice Cube', 'Nap',
+    'Lil Pain', 'Pizza', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Nice Cube', 'Nap',
   ];
   const FEMALE_NAMES = [
     'Lil Gym', 'Messy Elliott', 'Doja Bat', 'Cardio B', 'Nicki Mirage', 'Queen Latte-fah', 'Lauryn Grill',
