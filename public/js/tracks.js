@@ -46,6 +46,8 @@
     { id: 'memphis', name: 'Memphis Dirty South', src: 'tracks/90BPM-Memphis-Dirty-South.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Drums in at bar 5, out after bar 20, short tail. Grid fit: exactly 90 BPM, beat 1 at 0.096 s.
     { id: 'nashville', name: 'Nashville Bro Country', src: 'tracks/90BPM-Nashville-Bro-Country.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Drums in at bar 5, out after bar 20, short tail. Grid fit: exactly 90 BPM, beat 1 at 0.073 s.
+    { id: 'havana', name: 'Havana Reggaeton', src: 'tracks/90BPM-Havana-Reggaeton.mp3', bpm: 90, offset: 0.073, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;
