@@ -12,7 +12,7 @@
   const BARS = Engine.BARS;
   const BPB = Engine.BEATS_PER_BAR;
   const TOTAL_BEATS = BARS * BPB;
-  const COUNT_WORDS = ['4', '3', '2', '1'];
+  const COUNT_WORDS = ['8', '7', '6', '5', '4', '3', '2', '1'];
   const SOLO_LEAD_MS = 800;
 
   const $ = (id) => document.getElementById(id);
@@ -242,6 +242,7 @@
   function loadTracks() {
     const a = getAudioCtx();
     if (!a) return;
+    loadClap();
     Tracks.TRACKS.forEach((t) => {
       if (trackBuffers.has(t.id)) return;
       const pending = fetch(t.src)
@@ -253,6 +254,25 @@
       });
       trackBuffers.set(t.id, pending);
     });
+  }
+  // The golf clap that marks the end of a round.
+  let clapBuffer = null;
+  let clapLoading = false;
+  function loadClap() {
+    const a = getAudioCtx();
+    if (!a || clapLoading) return;
+    clapLoading = true;
+    fetch('sfx/golf-clap.mp3')
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+      .then((data) => new Promise((ok, fail) => a.decodeAudioData(data, ok, fail)))
+      .then((b) => { clapBuffer = b; }, (err) => { clapLoading = false; console.warn("Couldn't load the golf clap.", err); });
+  }
+  function playClap() {
+    if (!clapBuffer || !ac || ac.state !== 'running') return;
+    const src = ac.createBufferSource();
+    src.buffer = clapBuffer;
+    src.connect(sfxGain);
+    src.start();
   }
   const trackLabel = (t) => `${t.name} · ${t.bpm} BPM`;
 
@@ -796,7 +816,7 @@
     track: null,
     bpm: 90,
     beatSec: 60 / 90,
-    introBeats: 16, // the track's intro bars, in beats (bar 4 of them is the count-in)
+    introBeats: 16, // the track's intro bars, in beats (bars 3-4 of them are the count-in)
     solo: false,
     audio: null, // { gain, src, synth } playing this turn's track
     audioStart: null, // audio (speaker) time of the track's intro bar 1, beat 1
@@ -872,11 +892,11 @@
     const micName = $('mic-name');
     micName.style.setProperty('--pc', turn.color);
     micName.innerHTML = `<small>On the mic</small>${esc(isMe ? `${turn.name} (you)` : turn.name)}`;
-    $('ready-kicker').textContent = isMe ? "It's your turn!" : 'Get ready';
+    $('ready-kicker').textContent = 'Get ready';
     $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
-    $('ready-name').textContent = isMe ? 'You' : turn.name;
+    $('ready-name').textContent = turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
-    $('ready-line').textContent = isMe ? 'are on the mic' : 'is on the mic';
+    $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
     $('ready-beat').textContent = trackLabel(track);
     $('game-hint').textContent = isMe
       ? 'Rap along to the beat. Land the word in the 4th box right when the ball hits it.'
@@ -962,7 +982,7 @@
     if (pending && pending.buffer) play(pending.buffer);
     else if (pending && !pending.failed) pending.then(play, fallback);
     else fallback();
-    // Count-in ticks on the last intro bar.
+    // Count-in ticks over the last two intro bars.
     for (let i = 0; i < COUNT_IN; i++) {
       const t = start + (stage.introBeats - COUNT_IN + i) * stage.beatSec;
       if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
@@ -1068,15 +1088,15 @@
     cctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
     cctx.clearRect(0, 0, g.w, g.h);
     const ball = ballAt(p);
-    stage.trail = stage.trail.filter((pt) => now - pt.t < 140);
+    stage.trail = stage.trail.filter((pt) => now - pt.t < 110);
     if (!ball) return;
     stage.trail.push({ x: ball.x, y: ball.y, t: now });
     // Motion streak: a tapered, fading tail along the recent path.
     const pts = stage.trail;
     for (let i = 1; i < pts.length; i++) {
       const k = i / pts.length;
-      cctx.strokeStyle = `rgba(139, 197, 64, ${0.5 * k * ball.alpha})`;
-      cctx.lineWidth = g.r * 2 * k;
+      cctx.strokeStyle = `rgba(139, 197, 64, ${0.14 * k * ball.alpha})`;
+      cctx.lineWidth = g.r * 1.6 * k;
       cctx.lineCap = 'round';
       cctx.beginPath();
       cctx.moveTo(pts[i - 1].x, pts[i - 1].y);
@@ -1112,7 +1132,7 @@
 
     $('ready-overlay').classList.toggle('show', p < -COUNT_IN && !$('vote-overlay').classList.contains('show') && !$('score-overlay').classList.contains('show'));
 
-    // Count-in: 4, 3, 2, 1 on the last intro bar.
+    // Count-in: 8 down to 1 over the last two intro bars.
     if (p >= -COUNT_IN && p < 0) {
       const i = Math.floor(p) + COUNT_IN;
       if (i !== stage.countShown) {
@@ -1149,6 +1169,7 @@
     if (done !== stage.ended) {
       stage.ended = done;
       $('mic-drop').style.display = done ? 'flex' : 'none';
+      if (done && p < TOTAL_BEATS + 2) playClap();
     }
     drawBall(p, now);
     if (DEBUG) showDebugInfo(p);
@@ -1160,7 +1181,6 @@
     if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + 1.5) {
       stage.soloDone = true;
       $('solo-overlay').classList.add('show');
-      playSfx('cheer', 4);
     }
   }
 

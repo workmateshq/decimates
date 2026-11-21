@@ -16,7 +16,7 @@
   const MAX_PLAYERS = 4;
   const BARS = Words.BARS_PER_TURN; // 16
   const BEATS_PER_BAR = Words.BEATS_PER_BAR; // 4
-  const COUNT_IN_BEATS = 4; // "4, 3, 2, 1" on the last intro bar
+  const COUNT_IN_BEATS = 8; // "8 ... 1" over the last two intro bars
   const LEAD_MS = 1500; // before the track starts, so every browser gets the turn in time
   const VOTE_SECONDS = 20;
   const SCORE_MS = 4500; // how long a rapper's average is shown before the next turn

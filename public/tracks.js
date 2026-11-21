@@ -2,7 +2,7 @@
 // Node for tests (require).
 //
 // Every turn plays one track once, from `offset + skipBars` bars into the file:
-//   bars 1-4   intro: "Get ready" for bars 1-3, a 4-3-2-1 count-in on bar 4
+//   bars 1-4   intro: "Get ready" for bars 1-2, an 8-beat countdown over bars 3-4
 //   bars 5-20  the 16 rap bars (the drums are in)
 //   then the tail plays on under the vote, fading out over FADE_SEC from `fadeAfterBars`.
 // Bar n starts at startTime + (n - 1) * 4 * 60 / bpm, where startTime is when the file position
