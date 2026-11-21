@@ -46,13 +46,13 @@
   // Real rapper names with a letter or two changed, half men and half women (the robot voice follows
   // the gender), handed out at random (unique within a room).
   const MALE_NAMES = [
-    'Gucci Lane', 'Drape', 'Piggie', 'Juicy Jam', 'Killer Bike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
-    'Lil Pain', 'Pizza', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Nice Cube', 'Nap',
+    'Gucci Mate', 'Drape', 'Piggie', 'Brewsy J', 'Filler Mike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
+    'Lil Pain', 'Wu Tang Dan', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Nice Cube', '2Chins',
   ];
   const FEMALE_NAMES = [
-    'Lil Gym', 'Messy Elliott', 'Doja Bat', 'Cardio B', 'Nicki Mirage', 'Queen Latte-fah', 'Lauryn Grill',
-    'Megan Thee Scallion', 'Fizzo', 'Ewe', 'Rapsoda', 'Latte', 'Ice Slice', 'Malt', 'Da Brag', 'Remy Mama',
-    'Foxy Frown', 'MC Bite',
+    'Lil Krim', 'Messy Elliott', 'Doja Brat', 'Cardio B', 'Nicki Mirage', 'Queen Latte-fah', 'Lauryn Grill',
+    'Megan Thee Scallion', 'Fizzo', 'Ewe', 'Rapsoda', 'Latte', 'Ice Slice', 'Malt', 'MC-67', 'Remy Mama',
+    'Doxxy Brown', 'MC Bite',
   ];
   const RAP_NAMES = [...MALE_NAMES, ...FEMALE_NAMES];
 
