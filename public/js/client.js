@@ -1334,7 +1334,8 @@
   const ttsLog = [];
   function duck(on) {
     if (!duckGain || !ac) return;
-    duckGain.gain.setTargetAtTime(on ? 0.6 : 1, ac.currentTime, 0.08);
+    // Down to 30% for the robot voice; let it back up gently.
+    duckGain.gain.setTargetAtTime(on ? 0.3 : 1, ac.currentTime, on ? 0.06 : 0.4);
   }
   // Each line's voice is timed off the beat clock with timers (not animation frames, so it still
   // speaks in a background tab): a rough timer to just before the bar, then a precise one onto it.
@@ -1366,7 +1367,10 @@
     if (!synth || !turn || !stage.wb) return;
     synth.cancel();
     const text = turn.lines[k];
-    if (!text) return;
+    if (!text) {
+      if (k === WB_LINES - 1) duck(false);
+      return;
+    }
     const u = new SpeechSynthesisUtterance(text);
     const voice = pickVoice(turn.voiceGender);
     if (voice) {
@@ -1376,9 +1380,10 @@
     // A line has 2 bars (~5.3 s at 90 BPM): speed up long ones.
     const words = text.split(/\s+/).filter(Boolean).length;
     u.rate = Math.min(1.5, 1.05 + Math.max(0, words - 9) * 0.06);
-    u.onstart = () => duck(true);
-    u.onend = () => duck(false);
-    u.onerror = () => duck(false);
+    // Stay ducked across the gaps between lines; come back up after the last one.
+    duck(true);
+    u.onend = () => { if (k === WB_LINES - 1 || stage.turn !== turn) duck(false); };
+    u.onerror = u.onend;
     synth.speak(u);
     ttsLog.push({ k: k + 1, text, gender: turn.voiceGender, voice: voice ? voice.name : '(default)', rate: u.rate, beat: beatPos(), at: performance.now() });
   }
