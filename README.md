@@ -71,7 +71,7 @@ Tracks are data in [`public/js/tracks.js`](public/js/tracks.js):
 | The Bronx Jazz Hop | 90 | 0.066 s |
 | Memphis Dirty South | 90 | 0.096 s |
 | Nashville Bro Country | 90 | 0.096 s |
-| Havana Reggaeton | 90 | 0.073 s |
+| Havana Reggaeton | 90 | −1.26 s (its intro is 3½ bars, so the file starts on beat 3 of intro bar 1) |
 
 **Adding a track**
 

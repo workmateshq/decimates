@@ -1477,8 +1477,11 @@
       const src = a.createBufferSource();
       src.buffer = buffer;
       src.connect(gain);
-      if (start >= now) src.start(start, from);
-      else src.start(now, from + (now - start));
+      // A negative offset: the file begins a little after intro bar 1 (its intro is short).
+      const at = start - Math.min(0, from);
+      const pos = Math.max(0, from);
+      if (at >= now) src.start(at, pos);
+      else src.start(now, pos + (now - at));
       src.stop(fadeFrom + Tracks.FADE_SEC + 0.05);
       audio.src = src;
     };

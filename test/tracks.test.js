@@ -11,7 +11,7 @@ test('the catalogue matches the backing tracks (<bpm>BPM-*.mp3) in public/tracks
   Tracks.TRACKS.forEach((t) => {
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', t.src)), t.src);
     assert.ok(t.src.startsWith(`tracks/${t.bpm}BPM-`), 'the file name starts with its tempo');
-    assert.ok(t.offset > 0 && t.offset < Tracks.barSeconds(t), 'offset is within the first bar');
+    assert.ok(t.offset > -Tracks.barSeconds(t) && t.offset < Tracks.barSeconds(t), 'offset is within a bar of the file start');
     assert.equal(t.introBars, 4);
     assert.equal(t.rapBars, 16);
     assert.ok(t.fadeAfterBars >= t.introBars + t.rapBars, 'no fading before the last rap bar ends');
