@@ -13,17 +13,17 @@
 .write-clock.panic.fast { animation-duration: 0.5s; }
 @keyframes panic { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 40% { transform: scale(0.98); } }
 .write-card { padding: 16px; text-align: left; max-width: none; }
-.write-pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.write-pair { background: #0b0b0b; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; }
-.write-pair small { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
-.write-pair span { font-family: var(--street); font-size: clamp(20px, 3.4vw, 28px); line-height: 1.1; color: var(--gold); }
-.write-pair span i { font-style: normal; color: #6b6862; padding: 0 4px; }
-.write-line { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; margin-top: 8px; }
-.write-line label { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-.write-line label b { display: block; font-family: var(--street); font-weight: 400; font-size: 13px; letter-spacing: 0; text-transform: lowercase; color: var(--gold); line-height: 1.1; overflow-wrap: anywhere; }
+.write-pairs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.word-tile {
+  display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 6px 8px; border-radius: 8px;
+  font-family: var(--street); font-size: clamp(20px, 3.4vw, 28px); line-height: 1.05; text-align: center; overflow-wrap: anywhere;
+  background: #0b0b0b; border: 1px solid var(--line-2); border-bottom-width: 3px;
+}
+.word-tile.p0 { color: var(--gold); border-color: rgba(246, 196, 69, 0.45); }
+.word-tile.p1 { color: #7fb2e5; border-color: rgba(127, 178, 229, 0.45); }
+.write-line { margin-top: 8px; }
 .write-line input[type="text"] { margin: 0; font-size: 18px; letter-spacing: 0; text-transform: none; text-align: left; padding: 11px 12px; }
 .write-line input[type="text"]:disabled { color: var(--muted); }
-.write-tip { color: var(--muted); font-size: 13px; margin-top: 10px; }
 .voice-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .voice-pick > span { font-size: 13px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-right: 2px; }
 .voice-opt {
@@ -86,7 +86,6 @@
 .standing .tot { font-family: var(--street); font-size: 24px; color: var(--gold); white-space: nowrap; }
 
 @media (max-width: 640px) {
-  .write-line { grid-template-columns: 1fr; gap: 2px; }
-  .write-line label b { display: inline; margin-left: 6px; }
+  .write-pairs { grid-template-columns: 1fr 1fr; }
   .write-clock { font-size: 54px; }
 }

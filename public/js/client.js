@@ -800,8 +800,6 @@
     const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${alts.join('|')})(?=$|[^\\p{L}\\p{N}])`, 'giu');
     return esc(text).replace(re, (m, pre, w) => `${pre}<mark>${w}</mark>`);
   }
-  // Lines 1-2 rhyme on pair A, lines 3-4 on pair B.
-  const targetWord = (pairs, i) => (pairs[Math.floor(i / 2)] || [])[i % 2] || '';
 
   function writersOf(p) {
     return p.writers || [];
@@ -837,14 +835,12 @@
   }
 
   function buildWriteForm(pairs) {
-    $('write-pairs').innerHTML = pairs.map((pair, i) => `<div class="write-pair"><small>Lines ${i * 2 + 1}–${i * 2 + 2}</small>`
-      + `<span>${esc(pair[0])}<i>/</i>${esc(pair[1])}</span></div>`).join('');
+    // Just the prompt words as tiles: use them anywhere in the 4 lines, or not at all.
+    $('write-pairs').innerHTML = pairs.flatMap((pair, i) => pair.map((w) => `<span class="word-tile p${i}">${esc(w)}</span>`)).join('');
     $('write-lines').replaceChildren(...[0, 1, 2, 3].map((i) => {
       const row = document.createElement('div');
       row.className = 'write-line';
-      const word = targetWord(pairs, i);
-      row.innerHTML = `<label for="write-${i}">Bar ${i + 1}<b>${esc(word)}</b></label>`
-        + `<input type="text" id="write-${i}" maxlength="${Engine.LINE_MAX}" autocomplete="off" autocapitalize="sentences" enterkeyhint="${i < 3 ? 'next' : 'done'}" placeholder="…ends on &quot;${esc(word)}&quot;">`;
+      row.innerHTML = `<input type="text" id="write-${i}" maxlength="${Engine.LINE_MAX}" autocomplete="off" autocapitalize="sentences" enterkeyhint="${i < 3 ? 'next' : 'done'}" placeholder="Line ${i + 1}" aria-label="Line ${i + 1}">`;
       const input = row.querySelector('input');
       input.addEventListener('input', () => {
         write.lines[i] = input.value;
