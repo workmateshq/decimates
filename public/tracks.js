@@ -38,8 +38,8 @@
     { id: 'harlem', name: 'Harlem Boom Bap', src: 'tracks/90BPM-Harlem-Boom-Bap.mp3', bpm: 90, offset: 0.067, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 21 },
     // Drums in at bar 5, out after bar 20, short tail. Measured: 60 hits, median within 0.5 ms.
     { id: 'detroit', name: 'Detroit Horrorcore', src: 'tracks/90BPM-Detroit-Horrorcore.mp3', bpm: 90, offset: 0.066, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 21 },
-    // Drums in at bar 5, the music stops after bar 20. Measured: 47 hits, median within 1 ms.
-    { id: 'longbeach', name: 'Long Beach G-Funk', src: 'tracks/90BPM-Long-Beach-G-Funk.mp3', bpm: 90, offset: 0.087, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 21 },
+    // Re-cut (simplified). Drums in at bar 5, the music stops after bar 20. First sound and kick grid at 0.103 s.
+    { id: 'longbeach', name: 'Long Beach G-Funk', src: 'tracks/90BPM-Long-Beach-G-Funk.mp3', bpm: 90, offset: 0.103, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 21 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;

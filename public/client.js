@@ -779,7 +779,7 @@
     loadTracks();
     const names = Engine.RAP_NAMES;
     state.solo = state.solo || { name: names[Math.floor(Math.random() * names.length)], lastTrackId: null };
-    const track = Tracks.pickTrack(state.solo.lastTrackId);
+    const track = Tracks.byId(soloTrackChoice) || Tracks.pickTrack(state.solo.lastTrackId);
     state.solo.lastTrackId = track.id;
     // The first time, give the track a moment to finish decoding so it starts from the top.
     const pending = trackBuffers.get(track.id);
@@ -801,6 +801,17 @@
     showLobby();
     $('setup-view').style.display = 'block';
   }
+  // Testing aid: pick the solo beat (or leave it random). Both dropdowns share the choice.
+  let soloTrackChoice = '';
+  const soloSelects = [$('solo-track'), $('solo-track-again')];
+  soloSelects.forEach((sel) => {
+    sel.innerHTML = '<option value="">Beat: random</option>'
+      + Tracks.TRACKS.map((t) => `<option value="${t.id}">Beat: ${esc(trackLabel(t))}</option>`).join('');
+    sel.addEventListener('change', () => {
+      soloTrackChoice = sel.value;
+      soloSelects.forEach((other) => { other.value = soloTrackChoice; });
+    });
+  });
   $('solo-again-btn').addEventListener('click', () => startSolo());
   $('solo-home-btn').addEventListener('click', () => exitSolo());
 
