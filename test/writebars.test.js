@@ -182,7 +182,7 @@ test('performances go in seat order on 90 BPM tracks (never the same twice runni
   assert.deepEqual(turns.slice(0, 4).map((t) => t.voiceGender), ['male', 'female', 'male', 'female']);
   assert.ok(turns.every((t) => t.bpm === 90 && Tracks.byId(t.trackId).bpm === 90));
   for (let i = 1; i < turns.length; i++) assert.notEqual(turns[i].trackId, turns[i - 1].trackId);
-  assert.ok(Tracks.pickTrack('brooklyn', Math.random, (t) => t.bpm === 145).bpm === 145);
+  assert.equal(Tracks.pickTrack('brooklyn', Math.random, (t) => t.id === 'harlem').id, 'harlem', 'the filter limits the choice');
 });
 
 test('voting: rate everyone else at once; stars add up across 3 rounds to a final podium', () => {

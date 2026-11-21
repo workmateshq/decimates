@@ -28,7 +28,7 @@ Play it at **https://workmateshq.github.io/rapmates/** or jump straight into the
 
 ### Everything else
 
-- **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk and The Bronx Jazz Hop (90 BPM), and Chicago Drill and London Grime (145 BPM). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/js/beats.js`](public/js/beats.js)).
+- **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk, The Bronx Jazz Hop, Memphis Dirty South and Nashville Bro Country, all at 90 BPM (the tempo isn't shown in the game). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/js/beats.js`](public/js/beats.js)).
 - **Rooms, links and hosting**: exactly like the other mates games. Create a room and share the 4-letter code or link; link rooms like **/rapmates/mate** are hosted by the first visitor and handed to the next person if the host leaves (rappers in slot order, then the crowd); `?group=<id>` gives an embedding app its own room. Home button in game, music and sound-effect toggles (remembered on your device).
 
 ## How it works
@@ -69,8 +69,8 @@ Tracks are data in [`public/js/tracks.js`](public/js/tracks.js):
 | Detroit Horrorcore | 90 | 0.066 s |
 | Long Beach G-Funk | 90 | 0.103 s |
 | The Bronx Jazz Hop | 90 | 0.066 s |
-| Chicago Drill | 145 | 0.081 s |
-| London Grime | 145 | 0.273 s (`skipBars: 2`, `fadeAfterBars: 20`) |
+| Memphis Dirty South | 90 | 0.096 s |
+| Nashville Bro Country | 90 | 0.096 s |
 
 **Adding a track**
 

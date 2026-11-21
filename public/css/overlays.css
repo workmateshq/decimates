@@ -1,8 +1,8 @@
 /* Rapmates: overlays on the stage (get ready, voting, score, results podium, confetti). */
 /* Overlays on the stage: get ready, voting, score, results. */
 .overlay {
-  position: absolute; inset: 0; z-index: 10; display: none; align-items: flex-start; justify-content: center;
-  padding-top: 30px; background: rgba(5, 5, 5, 0.7); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: 30; display: none; align-items: flex-start; justify-content: center;
+  padding: 30px 16px; overflow-y: auto; background: rgba(5, 5, 5, 0.75); backdrop-filter: blur(4px);
 }
 .overlay.show { display: flex; }
 .overlay .card { animation: card-in 0.3s cubic-bezier(.25, 1, .4, 1); background: rgba(18, 18, 18, 0.95); }

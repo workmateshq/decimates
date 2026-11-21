@@ -42,12 +42,10 @@
     { id: 'longbeach', name: 'Long Beach G-Funk', src: 'tracks/90BPM-Long-Beach-G-Funk.mp3', bpm: 90, offset: 0.103, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Drums in at bar 5, out after bar 20. Grid fit over the drums: exactly 90 BPM, beat 1 at 0.066 s.
     { id: 'bronx', name: 'The Bronx Jazz Hop', src: 'tracks/90BPM-The-Bronx-Jazz-Hop.mp3', bpm: 90, offset: 0.066, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
-    // Measures 145 BPM (not 140): light drums in at bar 5, the full kick pattern from bar 7, music
-    // stops after bar 20. Beat 1 at 0.081 s.
-    { id: 'chicago', name: 'Chicago Drill', src: 'tracks/145BPM-Chicago-Drill.mp3', bpm: 145, offset: 0.081, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
-    // Measures 145 BPM (not 140). Beat 1 at 0.273 s; a 6-bar intro, drums from bar 7 for 18 bars. Skip
-    // 2 intro bars so the drop lands on rap bar 1, and fade as the 16 rap bars end (the drums run on 2 bars).
-    { id: 'london', name: 'London Grime', src: 'tracks/145BPM-London-Grime.mp3', bpm: 145, offset: 0.273, skipBars: 2, introBars: 4, rapBars: 16, fadeAfterBars: 20 },
+    // Drums in at bar 5, out after bar 20, short tail. Grid fit: exactly 90 BPM, beat 1 at 0.096 s.
+    { id: 'memphis', name: 'Memphis Dirty South', src: 'tracks/90BPM-Memphis-Dirty-South.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Drums in at bar 5, out after bar 20, short tail. Grid fit: exactly 90 BPM, beat 1 at 0.096 s.
+    { id: 'nashville', name: 'Nashville Bro Country', src: 'tracks/90BPM-Nashville-Bro-Country.mp3', bpm: 90, offset: 0.096, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;

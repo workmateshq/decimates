@@ -287,7 +287,7 @@
     src.connect(sfxGain);
     src.start();
   }
-  const trackLabel = (t) => `${t.name} · ${t.bpm} BPM`;
+  const trackLabel = (t) => t.name;
 
   // ---------- Lobby UI ----------
 
