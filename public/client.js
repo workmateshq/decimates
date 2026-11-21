@@ -1099,7 +1099,7 @@
     cctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
     cctx.clearRect(0, 0, g.w, g.h);
     const ball = ballAt(p);
-    stage.trail = stage.trail.filter((pt) => now - pt.t < 110);
+    stage.trail = stage.trail.filter((pt) => now - pt.t < 220);
     if (!ball) return;
     stage.trail.push({ x: ball.x, y: ball.y, t: now });
     // Motion streak: a tapered, fading tail along the recent path.
