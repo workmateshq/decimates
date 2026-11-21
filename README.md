@@ -9,7 +9,7 @@ A party rap battle for up to 4 mates, plus a crowd. Everyone's in the same room 
 - **Bouncing ball** (green): lands on each cell exactly on the beat, in arcs with a motion streak, driven by the audio clock.
 - **Voting**: after each turn everyone except the rapper (other rappers and the crowd) rates it 1–5 stars. When everyone's voted (or after 20 seconds) the rapper's average shows, then the next rapper's up. After the last turn: a podium of average stars and "_Name_ takes the mic!" (ties share it). The host can play again, or everyone heads back to the lobby.
 - **Solo practice**: from the home screen, rap 16 bars over a random track with the ball and prompts, no room or votes.
-- **Tracks** (all 90 BPM, in [`public/tracks/`](public/tracks/)): Brooklyn Boom Bap, Harlem Boom Bap, Detroit Horrorcore and Long Beach G-Funk. If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/beats.js`](public/beats.js)).
+- **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk and The Bronx Jazz Hop (90 BPM), and Chicago Drill (145 BPM). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/beats.js`](public/beats.js)).
 - **Rooms, links and hosting**: exactly like the other mates games. Create a room and share the 4-letter code or link; link rooms like **/rapmates/mate** are hosted by the first visitor and handed to the next person if the host leaves (rappers in slot order, then the crowd); `?group=<id>` gives an embedding app its own room. Home button in game, music and sound-effect toggles (remembered on your device).
 
 ## How it works
@@ -30,10 +30,12 @@ Tracks are data in [`public/tracks.js`](public/tracks.js):
 
 | Track | BPM | `offset` (bar 1, beat 1) |
 |---|---|---|
-| Brooklyn Boom Bap | 90 | 0.086 s |
+| Brooklyn Old School | 90 | 0.086 s |
 | Harlem Boom Bap | 90 | 0.067 s |
 | Detroit Horrorcore | 90 | 0.066 s |
-| Long Beach G-Funk | 90 | 0.087 s |
+| Long Beach G-Funk | 90 | 0.103 s |
+| The Bronx Jazz Hop | 90 | 0.066 s |
+| Chicago Drill | 145 | 0.081 s |
 
 **Adding a track**
 

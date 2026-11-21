@@ -33,13 +33,18 @@
   const TRACKS = [
     // Drums in at bar 5, out after bar 20, then a ~7 s decaying tail: let ~2 bars of it ring.
     // Measured: 59 hits, median within 0.5 ms of the grid.
-    { id: 'brooklyn', name: 'Brooklyn Boom Bap', src: 'tracks/90BPM-Brooklyn-Boom-Bap.mp3', bpm: 90, offset: 0.086, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    { id: 'brooklyn', name: 'Brooklyn Old School', src: 'tracks/90BPM-Brooklyn-Old-School.mp3', bpm: 90, offset: 0.086, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Drums in at bar 5, out after bar 20, short tail. Measured: 58 hits, median within 1 ms.
     { id: 'harlem', name: 'Harlem Boom Bap', src: 'tracks/90BPM-Harlem-Boom-Bap.mp3', bpm: 90, offset: 0.067, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Drums in at bar 5, out after bar 20, short tail. Measured: 60 hits, median within 0.5 ms.
     { id: 'detroit', name: 'Detroit Horrorcore', src: 'tracks/90BPM-Detroit-Horrorcore.mp3', bpm: 90, offset: 0.066, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
     // Re-cut (simplified). Drums in at bar 5, the music stops after bar 20. First sound and kick grid at 0.103 s.
     { id: 'longbeach', name: 'Long Beach G-Funk', src: 'tracks/90BPM-Long-Beach-G-Funk.mp3', bpm: 90, offset: 0.103, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Drums in at bar 5, out after bar 20. Grid fit over the drums: exactly 90 BPM, beat 1 at 0.066 s.
+    { id: 'bronx', name: 'The Bronx Jazz Hop', src: 'tracks/90BPM-The-Bronx-Jazz-Hop.mp3', bpm: 90, offset: 0.066, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
+    // Measures 145 BPM (not 140): light drums in at bar 5, the full kick pattern from bar 7, music
+    // stops after bar 20. Beat 1 at 0.081 s.
+    { id: 'chicago', name: 'Chicago Drill', src: 'tracks/145BPM-Chicago-Drill.mp3', bpm: 145, offset: 0.081, skipBars: 0, introBars: 4, rapBars: 16, fadeAfterBars: 22 },
   ];
 
   const byId = (id) => TRACKS.find((t) => t.id === id) || null;
