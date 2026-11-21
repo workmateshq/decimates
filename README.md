@@ -7,7 +7,7 @@ A party rap battle for up to 4 mates, plus a crowd. Everyone's in the same room 
 
 Play it at **https://workmateshq.github.io/rapmates/** or jump straight into the shared room at **https://workmateshq.github.io/rapmates/mate**.
 
-- **Rappers and the crowd**: the first 4 people in a room get the P1–P4 slots; everyone after that joins the **crowd** (shown as "Crowd: N" in the lobby). Everybody gets a real rapper's name (half men, half women, unique in the room). Between games, a free slot goes to whoever's waited longest in the crowd.
+- **Rappers and the crowd**: the first 4 people in a room get the P1–P4 slots; everyone after that joins the **crowd** (shown as "Crowd: N" in the lobby). Everybody gets a rapper's name with a letter or two changed (half men, half women, unique in the room): Snoop Hogg, Piggie, Rice Cube, Kendrick Llama, Lil Pain, Yung Bean, Cardio B, Doja Bat, Megan Thee Scallion, Messy Elliott, Nicki Mirage, Foxy Frown and more. Between games, a free slot goes to whoever's waited longest in the crowd.
 - **No mics needed**: nobody's audio is sent anywhere. Every screen plays the same beat and shows the same bars at the same moment; you rap out loud.
 - **Modes**: the host picks **Write Bars** or **Freestyle** in the lobby (everyone else sees the choice). Write Bars is the default, including in link rooms like /mate.
 

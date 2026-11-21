@@ -43,15 +43,16 @@
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Moody accents; green is kept for the ball and finished beats.
   const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8'];
-  // Real rapper names, half men and half women, handed out at random (unique within a room).
+  // Real rapper names with a letter or two changed, half men and half women (the robot voice follows
+  // the gender), handed out at random (unique within a room).
   const MALE_NAMES = [
-    'Gucci Mane', 'Drake', 'Biggie', 'Juicy J', 'Killer Mike', 'Quavo', 'Big Lurch', 'Violent J', 'Yung Lean',
-    'Lil Wayne', 'RZA', 'GZA', 'Xzibit', 'MF Doom', 'Snoop Dogg', 'Kendrick Lamar', 'Ice Cube', 'Nas',
+    'Gucci Lane', 'Drape', 'Piggie', 'Juicy Jam', 'Killer Bike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
+    'Lil Pain', 'Pizza', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Rice Cube', 'Nap',
   ];
   const FEMALE_NAMES = [
-    'Lil Kim', 'Missy Elliott', 'Doja Cat', 'Cardi B', 'Nicki Minaj', 'Queen Latifah', 'Lauryn Hill',
-    'Megan Thee Stallion', 'Lizzo', 'Eve', 'Rapsody', 'Latto', 'Ice Spice', 'Salt', 'Da Brat', 'Remy Ma',
-    'Foxy Brown', 'MC Lyte',
+    'Lil Gym', 'Messy Elliott', 'Doja Bat', 'Cardio B', 'Nicki Mirage', 'Queen Latte-fah', 'Lauryn Grill',
+    'Megan Thee Scallion', 'Fizzo', 'Ewe', 'Rapsoda', 'Latte', 'Ice Slice', 'Malt', 'Da Brag', 'Remy Mama',
+    'Foxy Frown', 'MC Bite',
   ];
   const RAP_NAMES = [...MALE_NAMES, ...FEMALE_NAMES];
 

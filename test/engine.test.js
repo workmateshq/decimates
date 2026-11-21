@@ -52,13 +52,13 @@ test('room codes are 4 letters without I or O', () => {
   for (let i = 0; i < 50; i++) assert.match(generateRoomCode(), /^[A-HJ-NP-Z]{4}$/);
 });
 
-test('names are real rappers, an even mix of men and women, all unique', () => {
+test('names are punny rappers, an even mix of men and women, all unique', () => {
   assert.equal(MALE_NAMES.length, FEMALE_NAMES.length);
   assert.ok(MALE_NAMES.length >= 18);
   assert.deepEqual(RAP_NAMES, [...MALE_NAMES, ...FEMALE_NAMES]);
   assert.equal(new Set(RAP_NAMES).size, RAP_NAMES.length);
-  ['Gucci Mane', 'Drake', 'Biggie', 'Juicy J', 'Killer Mike', 'Quavo', 'Big Lurch', 'Violent J', 'Yung Lean', 'Lil Wayne',
-    'RZA', 'GZA', 'Xzibit', 'MF Doom', 'Lil Kim', 'Missy Elliott', 'Doja Cat', 'Cardi B'].forEach((n) => assert.ok(RAP_NAMES.includes(n), n));
+  ['Snoop Hogg', 'Piggie', 'Rice Cube', 'Kendrick Llama'].forEach((n) => assert.ok(MALE_NAMES.includes(n), n));
+  ['Cardio B', 'Doja Bat', 'Megan Thee Scallion', 'Messy Elliott'].forEach((n) => assert.ok(FEMALE_NAMES.includes(n), n));
 });
 
 test('the first 4 join as rappers P1-P4; the 5th and later join the crowd', () => {
@@ -83,10 +83,10 @@ test('names are unique, even with a crowd bigger than the name list', () => {
 
 test('a preferred name is kept when it is free (moving to a new host)', () => {
   const { room } = makeRoom();
-  room.join('a', 'Missy Elliott');
-  assert.equal(room.members.get('a').name, 'Missy Elliott');
-  room.join('b', 'Missy Elliott');
-  assert.notEqual(room.members.get('b').name, 'Missy Elliott');
+  room.join('a', 'Messy Elliott');
+  assert.equal(room.members.get('a').name, 'Messy Elliott');
+  room.join('b', 'Messy Elliott');
+  assert.notEqual(room.members.get('b').name, 'Messy Elliott');
 });
 
 test('between games a freed rapper slot goes to the longest-waiting crowd member', () => {
