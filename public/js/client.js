@@ -838,7 +838,7 @@
 
   function buildWriteForm(pairs) {
     // Just the prompt words as tiles: use them anywhere in the 4 lines, or not at all.
-    $('write-pairs').innerHTML = pairs.flatMap((pair, i) => pair.map((w) => `<span class="word-tile p${i}">${esc(w)}</span>`)).join('');
+    $('write-pairs').innerHTML = pairs.flatMap((pair, i) => pair.map((w) => `<span class="word-tile p${i}${w.length > 9 ? ' long' : ''}">${esc(w)}</span>`)).join('');
     $('write-lines').replaceChildren(...[0, 1, 2, 3].map((i) => {
       const row = document.createElement('div');
       row.className = 'write-line';

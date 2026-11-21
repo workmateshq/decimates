@@ -16,9 +16,10 @@
 .write-pairs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
 .word-tile {
   display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 6px 8px; border-radius: 8px;
-  font-family: var(--street); font-size: clamp(20px, 3.4vw, 28px); line-height: 1.05; text-align: center; overflow-wrap: anywhere;
+  font-family: var(--street); font-size: clamp(17px, 2.6vw, 24px); line-height: 1.05; text-align: center; overflow-wrap: normal; hyphens: none;
   background: #0b0b0b; border: 1px solid var(--line-2); border-bottom-width: 3px;
 }
+.word-tile.long { font-size: clamp(14px, 2vw, 19px); }
 .word-tile.p0 { color: var(--gold); border-color: rgba(246, 196, 69, 0.45); }
 .word-tile.p1 { color: #7fb2e5; border-color: rgba(127, 178, 229, 0.45); }
 .write-line { margin-top: 8px; }
