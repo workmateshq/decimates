@@ -139,6 +139,17 @@
     click(t, accent) {
       tone(t, 'square', accent ? 2000 : 1300, accent ? 2000 : 1300, 0.03, accent ? 0.35 : 0.2, 0.001);
     },
+    // Menu sounds: a soft tick on hover, a short two-layer pop on press.
+    uiHover() {
+      const t = ac.currentTime;
+      tone(t, 'sine', 1900, 1600, 0.035, 0.05, 0.002);
+    },
+    uiClick() {
+      const t = ac.currentTime;
+      tone(t, 'triangle', 520, 880, 0.07, 0.18, 0.002);
+      tone(t, 'sine', 1320, 1320, 0.05, 0.08, 0.001);
+      noise(t, 0.02, 'highpass', 3000, 0.06, 0.7);
+    },
     star(n) {
       const t = ac.currentTime;
       tone(t, 'triangle', 440 * 2 ** ((n * 2) / 12), 440 * 2 ** ((n * 2 + 5) / 12), 0.12, 0.3);
@@ -499,6 +510,29 @@
     if (e.key === 'Enter') $('join-btn').click();
   });
   $('solo-btn').addEventListener('click', () => withName(() => startSolo()));
+
+  // Menu sounds on the home screen, lobby and name prompt. Hover ticks only play once the browser
+  // allows sound (after the first tap or click, which also wakes the audio up).
+  const UI_TARGETS = '.btn, .mode-opt, .track-select';
+  ['lobby-card', 'name-overlay'].forEach((id) => {
+    const root = $(id);
+    let hovered = null;
+    root.addEventListener('pointerdown', () => getAudioCtx(), true);
+    root.addEventListener('pointerover', (e) => {
+      const el = e.target.closest(UI_TARGETS);
+      if (el === hovered) return;
+      hovered = el;
+      if (el && !el.disabled && e.pointerType === 'mouse') playSfx('uiHover');
+    });
+    root.addEventListener('pointerleave', () => { hovered = null; });
+    root.addEventListener('click', (e) => {
+      const el = e.target.closest(UI_TARGETS);
+      if (el && !el.disabled && !el.matches('select')) playSfx('uiClick');
+    });
+    root.addEventListener('change', (e) => {
+      if (e.target.matches('select')) playSfx('uiClick');
+    });
+  });
 
   $('start-btn').addEventListener('click', () => {
     getAudioCtx();
