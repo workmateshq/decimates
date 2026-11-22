@@ -17,7 +17,7 @@
   const COUNT_WORDS = ['8', '7', '6', '5', '4', '3', '2', '1'];
   const WB_LINES = Engine.WB_LINES;
   const LINE_BEATS = Engine.WB_BARS_PER_LINE * BPB; // a Write Bars line lasts 2 bars
-  const MODE_LABELS = { writebars: 'Write Bars', freestyle: 'Freestyle' };
+  const MODE_LABELS = { writebars: 'Write bars', freestyle: 'Freestyle' };
   // ?debug&write=10: a 10-second write timer for testing (the default is 60).
   const DEBUG_WRITE = DEBUG && PARAMS.has('write') ? Number(PARAMS.get('write')) || undefined : undefined;
   const startOptions = () => (DEBUG_WRITE ? { writeSeconds: DEBUG_WRITE } : undefined);
@@ -217,37 +217,28 @@
 
   // ---------- Mic characters ----------
 
-  // A gritty chrome mic: wire-mesh grille, a band in the player's colour, paint drips down the handle,
-  // and for the mascot / winners a bandana wrap and a gold chain. Ids are unique per drawing.
+  // A regular handheld mic: chrome mesh head, a thin ring in the player's colour, a plain black handle.
+  // Ids are unique per drawing.
   let micId = 0;
-  function micSvg(color, { chain = false, bandana = false } = {}) {
+  function micSvg(color) {
     const id = `mic${++micId}`;
     return `
       <defs>
-        <radialGradient id="${id}c" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#c9ced6"/><stop offset=".7" stop-color="#6b7079"/><stop offset="1" stop-color="#2c2f35"/></radialGradient>
-        <linearGradient id="${id}h" x1="0" x2="1"><stop offset="0" stop-color="#1a1a1a"/><stop offset=".45" stop-color="#5a5a5a"/><stop offset=".6" stop-color="#2e2e2e"/><stop offset="1" stop-color="#111"/></linearGradient>
-        <clipPath id="${id}g"><circle cx="50" cy="34" r="27"/></clipPath>
+        <radialGradient id="${id}c" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#f4f5f7"/><stop offset=".45" stop-color="#b9bec6"/><stop offset="1" stop-color="#4a4e56"/></radialGradient>
+        <linearGradient id="${id}h" x1="0" x2="1"><stop offset="0" stop-color="#151515"/><stop offset=".4" stop-color="#3d3d3d"/><stop offset=".65" stop-color="#222"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient>
+        <linearGradient id="${id}r" x1="0" x2="1"><stop offset="0" stop-color="#8d929a"/><stop offset=".4" stop-color="#e6e8ec"/><stop offset="1" stop-color="#6b7078"/></linearGradient>
+        <clipPath id="${id}g"><circle cx="50" cy="32" r="24"/></clipPath>
       </defs>
-      <ellipse cx="50" cy="115" rx="18" ry="3.5" fill="rgba(0,0,0,.35)"/>
-      <path d="M40 62h20l-3 48a7 7 0 0 1-14 0z" fill="url(#${id}h)"/>
-      <g stroke="rgba(255,255,255,.12)" stroke-width="2"><path d="M42 74h16M42.5 82h15M43 90h14M43.5 98h13"/></g>
-      <path d="M44 66c0 10-2 14 1 20s-1 9 1 12" stroke="${color}" stroke-width="4" fill="none" stroke-linecap="round" opacity=".9"/>
-      <circle cx="46" cy="99" r="2.6" fill="${color}" opacity=".9"/>
-      <path d="M55 66v13" stroke="${color}" stroke-width="3" stroke-linecap="round" opacity=".85"/><circle cx="55" cy="82" r="2.1" fill="${color}" opacity=".85"/>
-      <rect x="33" y="55" width="34" height="11" rx="3" fill="${color}"/>
-      <rect x="33" y="55" width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,.35)"/>
-      <circle cx="50" cy="34" r="27" fill="url(#${id}c)"/>
-      <g clip-path="url(#${id}g)" stroke="rgba(20,22,26,.55)" stroke-width="1.6">
-        ${[...Array(12).keys()].map((i) => `<path d="M${10 + i * 7} 0 L${i * 7 - 20} 70"/><path d="M${i * 7 - 20} 0 L${10 + i * 7} 70"/>`).join('')}
+      <ellipse cx="50" cy="115" rx="14" ry="3" fill="rgba(0,0,0,.35)"/>
+      <path d="M40 58h20l-4 50a6 6 0 0 1-12 0z" fill="url(#${id}h)"/>
+      <rect x="37" y="52" width="26" height="9" rx="3" fill="url(#${id}r)"/>
+      <rect x="40" y="61" width="20" height="3" fill="${color}"/>
+      <circle cx="50" cy="32" r="24" fill="url(#${id}c)"/>
+      <g clip-path="url(#${id}g)" stroke="rgba(30,32,36,.45)" stroke-width="1.2">
+        ${[...Array(14).keys()].map((i) => `<path d="M${i * 5 + 22} 4V60"/><path d="M20 ${i * 5 + 6}H80"/>`).join('')}
       </g>
-      <circle cx="50" cy="34" r="27" fill="none" stroke="#1b1d21" stroke-width="2.5"/>
-      <ellipse cx="40" cy="20" rx="9" ry="4.5" fill="rgba(255,255,255,.55)" transform="rotate(-30 40 20)"/>
-      ${bandana ? `<path d="M23 36q27 9 54 0l-1 9q-26 8-52 0z" fill="${color}"/><path d="M23 36q27 9 54 0" stroke="rgba(0,0,0,.25)" stroke-width="1.5" fill="none"/>
-        <g fill="#fff" opacity=".7"><circle cx="33" cy="42" r="1.4"/><circle cx="44" cy="44" r="1.4"/><circle cx="56" cy="44" r="1.4"/><circle cx="67" cy="42" r="1.4"/></g>
-        <path d="M77 38l12-6-3 9 6 5-14-1z" fill="${color}"/><path d="M77 38l12-6-3 9" stroke="rgba(0,0,0,.25)" stroke-width="1" fill="none"/>` : ''}
-      ${chain ? `<path d="M31 62q19 30 38 0" stroke="#F6C445" stroke-width="3.2" fill="none" stroke-dasharray="3.2 1.8" stroke-linecap="round"/>
-        <path d="M31 62q19 30 38 0" stroke="#a87a10" stroke-width="1" fill="none" stroke-dasharray="3.2 1.8" transform="translate(0 1.2)"/>
-        <rect x="44" y="76" width="12" height="13" rx="2.5" fill="#F6C445" stroke="#a87a10" stroke-width="1.2"/><path d="M47 83h6" stroke="#a87a10" stroke-width="1.6"/>` : ''}`;
+      <circle cx="50" cy="32" r="24" fill="none" stroke="#2a2d32" stroke-width="2"/>
+      <ellipse cx="42" cy="21" rx="7" ry="3.5" fill="rgba(255,255,255,.5)" transform="rotate(-30 42 21)"/>`;
   }
 
   // ---------- Backing tracks ----------
@@ -1073,7 +1064,7 @@
       step.className = 'step';
       step.style.setProperty('--pc', r.color);
       step.style.animationDelay = `${0.15 * (display.length - i)}s`;
-      step.innerHTML = `<svg class="avatar" viewBox="0 0 100 120" aria-hidden="true">${micSvg(r.color, { chain: r.place === 1 })}</svg>`
+      step.innerHTML = `<svg class="avatar" viewBox="0 0 100 120" aria-hidden="true">${micSvg(r.color)}</svg>`
         + `<span class="who">${esc(nameOf(r))}</span>`
         + `<div class="block" style="height:${HEIGHTS[r.place] || 60}px"><span class="place">${r.place}</span>`
         + `<span class="avg">${wb ? `${r.total} ★` : r.average === null ? 'no votes' : `${r.average.toFixed(1)} ★`}</span></div>`;
@@ -1251,7 +1242,7 @@
     micName.style.setProperty('--pc', turn.color);
     micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
     $('ready-kicker').textContent = 'Get ready';
-    $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
+    $('ready-avatar').innerHTML = micSvg(turn.color);
     $('ready-name').textContent = turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
     $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
@@ -1290,7 +1281,7 @@
     micName.style.setProperty('--pc', turn.color);
     micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
     $('ready-kicker').textContent = `Round ${turn.wbRound} · ${turn.perf + 1} of ${turn.perfs}`;
-    $('ready-avatar').innerHTML = micSvg(turn.color, { chain: true });
+    $('ready-avatar').innerHTML = micSvg(turn.color);
     $('ready-name').textContent = turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
     $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';

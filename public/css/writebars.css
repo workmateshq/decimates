@@ -26,7 +26,7 @@
 .write-line input[type="text"] { margin: 0; font-size: 18px; letter-spacing: 0; text-transform: none; text-align: left; padding: 11px 12px; }
 .write-line input[type="text"]:disabled { color: var(--muted); }
 .voice-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.voice-pick > span { font-size: 13px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-right: 2px; }
+.voice-pick > span { font-size: 13px; color: var(--muted); letter-spacing: 0.2px; margin-right: 2px; }
 .voice-opt {
   font-family: var(--ui); font-weight: 900; font-size: 13px; padding: 8px 12px; border-radius: 8px; cursor: pointer;
   background: #0b0b0b; border: 1px solid var(--line-2); color: var(--muted);
@@ -72,7 +72,7 @@
 .wb-entry { border: 1px solid var(--line); border-left: 4px solid var(--pc); border-radius: 8px; padding: 10px 12px; background: #111; }
 .wb-entry-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .wb-entry-name { font-family: var(--street); font-size: 22px; line-height: 1.05; color: var(--pc); }
-.wb-entry-tag { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.wb-entry-tag { font-size: 11px; letter-spacing: 0.2px; color: var(--muted); white-space: nowrap; }
 .wb-entry ol { margin: 6px 0 0 20px; color: var(--ink); font-size: 15px; line-height: 1.35; }
 .wb-entry ol li::marker { color: #6b6862; }
 .wb-entry mark { background: none; color: var(--gold); }
