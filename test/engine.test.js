@@ -313,6 +313,8 @@ test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always
   for (const r of [0, 0.49, 0.51, 0.99]) {
     const room = new GameRoom('TEST', { broadcast() {}, send() {}, setInterval: () => 1, clearInterval() {}, random: () => r, now: () => 0 });
     const picks = Array.from({ length: 24 }, () => room.nextAdlib());
+    const named = picks.filter(Boolean);
+    named.forEach((n, i) => assert.equal(n, ['faaah', 'damn'][i % 2], 'they alternate'));
     const gaps = [];
     let last = -1;
     picks.forEach((p, i) => { if (p) { gaps.push(i - last); last = i; } });

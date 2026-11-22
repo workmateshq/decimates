@@ -8,8 +8,7 @@
   const PARAMS = new URLSearchParams(location.search);
   const DEBUG = PARAMS.has('debug');
   const DEBUG_CLICK = DEBUG && PARAMS.has('click'); // ?debug&click: a metronome over the track
-  const FORCE_ADLIB = DEBUG && PARAMS.has('adlib'); // ?debug&adlib: the "faaah" ad-lib on every turn
-  const ADLIB_HIT_SEC = 0.2; // where the "faaah" hits in sfx/faaah.mp3
+  const FORCE_ADLIB = DEBUG && PARAMS.has('adlib'); // ?debug&adlib: an ad-lib on every turn (?debug&adlib=damn for that one)
   // ?ttslead=ms starts each robot-voice line that much ahead of its bar (for testing speech start-up lag).
   const TTS_LEAD_MS = PARAMS.has('ttslead') ? Math.max(0, Math.min(1000, Number(PARAMS.get('ttslead')) || 0)) : 0;
   const COUNT_IN = Engine.COUNT_IN_BEATS;
@@ -265,7 +264,9 @@
   }
   // Sampled sound effects: the golf clap that marks the end of a round, and the "faaah" ad-lib.
   let clapBuffer = null;
-  let adlibBuffer = null;
+  const adlibBuffers = {};
+  // Where each ad-lib's hit is in its file, so it can land on the beat.
+  const ADLIB_HIT_SEC = { faaah: 0.2, damn: 0.03 };
   let clapLoading = false;
   const loadSample = (a, url) => fetch(url)
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
@@ -275,7 +276,7 @@
     if (!a || clapLoading) return;
     clapLoading = true;
     loadSample(a, 'sfx/golf-clap.mp3').then((b) => { clapBuffer = b; }, (err) => { clapLoading = false; console.warn("Couldn't load the golf clap.", err); });
-    loadSample(a, 'sfx/faaah.mp3').then((b) => { adlibBuffer = b; }, (err) => console.warn("Couldn't load the ad-lib.", err));
+    Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
   function playClap() {
     if (!clapBuffer || !ac || ac.state !== 'running') return;
@@ -1101,13 +1102,15 @@
 
   // ---------- Solo practice ----------
 
-  // Solo: about every 3rd go gets the ad-lib, like a room (never twice running, always by the 4th).
+  // Solo: about every 3rd go gets an ad-lib, like a room (never twice running, always by the 4th), alternating.
   let soloAdlibGap = 0;
+  let soloAdlibCount = 0;
   function soloAdlib() {
     soloAdlibGap += 1;
     const yes = soloAdlibGap >= 4 || (soloAdlibGap === 3 && Math.random() < 0.5);
-    if (yes) soloAdlibGap = 0;
-    return yes;
+    if (!yes) return null;
+    soloAdlibGap = 0;
+    return Engine.ADLIBS[soloAdlibCount++ % Engine.ADLIBS.length];
   }
 
   async function startSolo() {
@@ -1218,7 +1221,10 @@
     return row;
   }
 
+  let forcedAdlibs = 0;
   function setupTurn(turn, { solo }) {
+    const named = PARAMS.get('adlib');
+    stage.forcedAdlib = !FORCE_ADLIB ? null : Engine.ADLIBS.includes(named) ? named : Engine.ADLIBS[forcedAdlibs++ % Engine.ADLIBS.length];
     stopStage();
     const track = Tracks.byId(turn.trackId) || Tracks.TRACKS[0];
     stage.turn = turn;
@@ -1505,14 +1511,15 @@
       const t = start + (stage.introBeats - COUNT_IN + i) * stage.beatSec;
       if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
     }
-    // The "faaah" ad-lib on some turns: its hit (0.2 s into the sample) lands on the downbeat of rap bar 13
-    // in Freestyle, or on the last beat of bar 6 (just before the last line) in Write Bars.
-    if ((stage.turn.adlib || FORCE_ADLIB) && adlibBuffer) {
+    // The ad-lib on some turns: its hit lands on the downbeat of rap bar 13 in Freestyle, or on the last beat
+    // of bar 6 (just before the last line) in Write Bars.
+    const adlib = stage.forcedAdlib || (typeof stage.turn.adlib === 'string' ? stage.turn.adlib : null);
+    if (adlib && adlibBuffers[adlib]) {
       const beat = stage.introBeats + (stage.wb ? 5 * BPB + 3 : 12 * BPB);
-      const t = start + beat * stage.beatSec - ADLIB_HIT_SEC;
+      const t = start + beat * stage.beatSec - (ADLIB_HIT_SEC[adlib] || 0);
       if (t > a.currentTime) {
         const src = a.createBufferSource();
-        src.buffer = adlibBuffer;
+        src.buffer = adlibBuffers[adlib];
         src.connect(sfxGain);
         src.start(t);
         audio.clicks.push(src);

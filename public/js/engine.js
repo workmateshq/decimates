@@ -34,6 +34,7 @@
   const WB_PAIRS = 2; // per rapper per round: lines 1-2 use pair A, lines 3-4 pair B
   const WB_BARS_PER_LINE = 2;
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
+  const ADLIBS = ['faaah', 'damn']; // sfx/<name>.mp3, alternated
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
   const WB_GAP_MS = 3000; // after a performance: the golf clap while the track fades
@@ -118,7 +119,8 @@
       this.members = new Map(); // id -> { id, role: 'player'|'crowd', number, name, color, seq }
       this.seq = 0;
       this.lastTrackId = null; // never the same track twice in a row
-      this.adlibGap = 0; // turns since the last "faaah" ad-lib
+      this.adlibGap = 0; // turns since the last ad-lib
+      this.adlibCount = 0; // ad-libs so far, to alternate them
       this.started = false;
       this.loop = null;
       this.round = 0;
@@ -599,12 +601,14 @@
       }
     }
 
-    // About every 3rd turn gets the "faaah" ad-lib: never two turns running, 50/50 on the 3rd, always by the 4th.
+    // About every 3rd turn gets an ad-lib (never two turns running, 50/50 on the 3rd, always by the 4th),
+    // alternating "faaah" and "damn". Returns its name, or null for none.
     nextAdlib() {
       this.adlibGap += 1;
       const yes = this.adlibGap >= 4 || (this.adlibGap === 3 && this.random() < 0.5);
-      if (yes) this.adlibGap = 0;
-      return yes;
+      if (!yes) return null;
+      this.adlibGap = 0;
+      return ADLIBS[this.adlibCount++ % ADLIBS.length];
     }
 
     stopLoop() {
@@ -616,6 +620,7 @@
   return {
     GameRoom,
     VOICE_ACCENTS,
+    ADLIBS,
     generateRoomCode,
     standingsOf,
     totalsStandingsOf,
