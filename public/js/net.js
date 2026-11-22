@@ -106,6 +106,7 @@
     // Each create/join/enter bumps this; an older attempt that's still running (its timer, retries,
     // backup rooms) stops as soon as it sees it's been replaced, and its answer is never delivered.
     let attempt = 0;
+    let myName = ''; // the name this player picked, sent when creating, joining or entering a room
     const conns = new Map(); // host only: playerId -> DataConnection
 
     function dispatch(ev, data) {
@@ -412,12 +413,12 @@
           answered = true;
           ack({ ok: false, error: "Couldn't get into the room. Check your connection, then try again or enter a code." });
         }, GIVE_UP_MS);
-        if (ev === 'createRoom') return createRoom(answer);
-        if (ev === 'joinRoom') return joinRoom(String(args[0] || '').trim().toUpperCase(), answer);
+        if (ev === 'createRoom') return createRoom(answer, 0, null, myName);
+        if (ev === 'joinRoom') return joinRoom(String(args[0] || '').trim().toUpperCase(), answer, myName);
         if (ev === 'enterRoom') {
           const name = normaliseRoomName(args[0]);
           if (!name) return answer({ ok: false, error: 'Room names are 2-16 letters, numbers or dashes.' });
-          return enterRoom(name, answer, undefined, undefined, 1, mine);
+          return enterRoom(name, answer, myName, undefined, 1, mine);
         }
         return teardown();
       }
@@ -437,6 +438,9 @@
         (handlers[ev] = handlers[ev] || []).push(fn);
       },
       emit,
+      setName(name) {
+        myName = typeof name === 'string' ? name : '';
+      },
       get isHost() {
         return mode === 'host';
       },

@@ -438,20 +438,67 @@
     applyLobby(res);
   }
 
-  $('create-btn').addEventListener('click', () => {
+  // ---------- Your name ----------
+  // Everyone picks their own name; it's remembered on this device and sent when entering a room.
+  const NAME_KEY = 'rapmates-name';
+  function savedName() {
+    try { return Engine.sanitizeName(localStorage.getItem(NAME_KEY) || ''); } catch { return ''; }
+  }
+  function saveName(name) {
+    const clean = Engine.sanitizeName(name);
+    try { localStorage.setItem(NAME_KEY, clean); } catch { /* private mode */ }
+    net.setName(clean);
+    if ($('name-input').value !== clean && document.activeElement !== $('name-input')) $('name-input').value = clean;
+    return clean;
+  }
+  $('name-input').value = savedName();
+  net.setName(savedName());
+  $('name-input').addEventListener('input', () => {
+    const clean = Engine.sanitizeName($('name-input').value);
+    try { localStorage.setItem(NAME_KEY, clean); } catch { /* private mode */ }
+    net.setName(clean);
+  });
+  // Runs `then` once there's a name, asking for one first if needed.
+  let afterName = null;
+  function withName(then) {
+    const name = Engine.sanitizeName($('name-input').value) || savedName();
+    if (name) {
+      saveName(name);
+      return then();
+    }
+    afterName = then;
+    $('name-modal-input').value = '';
+    $('name-overlay').classList.add('show');
+    setTimeout(() => $('name-modal-input').focus(), 50);
+  }
+  $('name-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = Engine.sanitizeName($('name-modal-input').value);
+    if (!name) return $('name-modal-input').focus();
+    saveName(name);
+    $('name-input').value = name;
+    $('name-overlay').classList.remove('show');
+    const then = afterName;
+    afterName = null;
+    if (then) then();
+  });
+
+  $('create-btn').addEventListener('click', () => withName(() => {
     setConnecting(true);
     net.emit('createRoom', handleJoinResponse);
-  });
+  }));
   $('join-btn').addEventListener('click', () => {
     const code = $('room-input').value.trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(code)) return showError('Enter a 4-letter room code.');
-    setConnecting(true);
-    net.emit('joinRoom', code, handleJoinResponse);
+    withName(() => {
+      setConnecting(true);
+      net.emit('joinRoom', code, handleJoinResponse);
+    });
   });
   $('room-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') $('join-btn').click();
   });
-  $('solo-btn').addEventListener('click', () => startSolo());
+  $('solo-btn').addEventListener('click', () => withName(() => startSolo()));
 
   $('start-btn').addEventListener('click', () => {
     getAudioCtx();
@@ -564,8 +611,10 @@
     }
     state.linkRoom = true;
     $('lobby-card').classList.add('link-room');
-    setConnecting(true);
-    net.emit('enterRoom', requested, handleJoinResponse);
+    withName(() => {
+      setConnecting(true);
+      net.emit('enterRoom', requested, handleJoinResponse);
+    });
   }
 
   // ---------- Game: phases from the host ----------
@@ -610,7 +659,7 @@
   });
 
   function hideOverlays() {
-    document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
+    document.querySelectorAll('.overlay:not(#name-overlay)').forEach((o) => o.classList.remove('show'));
   }
 
   const sameTurn = (a, b) => a && b && a.rapperId === b.rapperId && a.startAt === b.startAt;
@@ -788,7 +837,7 @@
   // Everyone writes at once against the host's clock. Drafts go to the host as you type, so whatever's
   // written when the clock runs out is what gets performed.
 
-  const write = { key: null, lines: ['', '', '', ''], voice: 'tts', done: false, draftTimer: null, finalSent: false, lastTick: null };
+  const write = { key: null, lines: ['', '', '', ''], voice: null, done: false, draftTimer: null, finalSent: false, lastTick: null };
 
   // Escaped text with the rhyme words (anywhere in the line) wrapped in <mark>.
   function markRhymes(text, words) {
@@ -815,6 +864,8 @@
       write.finalSent = false;
       write.lastTick = null;
       clearTimeout(write.draftTimer);
+      // Your pick carries over between rounds; the first time it's the seat's default (P1 male, P2 female, ...).
+      if (!write.voice && mine) write.voice = (mine.number || 1) % 2 ? 'male' : 'female';
       if (mine) buildWriteForm(mine.pairs);
       playSfx('ding');
     }
@@ -957,7 +1008,7 @@
       card.className = 'wb-entry';
       card.style.setProperty('--pc', x.color);
       card.innerHTML = `<div class="wb-entry-head"><span class="wb-entry-name">${esc(mine ? `${x.name} (You)` : x.name)}</span>`
-        + `<span class="wb-entry-tag">${x.voice === 'self' ? 'Rapped live' : 'Robot voice'}</span></div>`
+        + `<span class="wb-entry-tag">${x.voice === 'self' ? 'Rapped live' : 'Robot MC'}</span></div>`
         + `<ol>${x.lines.map((l) => `<li>${markRhymes(l, words)}</li>`).join('')}</ol>`;
       if (!mine) {
         const stars = document.createElement('div');
@@ -1116,8 +1167,7 @@
   async function startSolo() {
     getAudioCtx();
     loadTracks();
-    const names = Engine.RAP_NAMES;
-    state.solo = state.solo || { name: names[Math.floor(Math.random() * names.length)], lastTrackId: null };
+    state.solo = state.solo || { name: savedName() || 'Rapper', lastTrackId: null };
     const track = Tracks.byId(soloTrackChoice) || Tracks.pickTrack(state.solo.lastTrackId);
     state.solo.lastTrackId = track.id;
     // The first time, give the track a moment to finish decoding so it starts from the top.

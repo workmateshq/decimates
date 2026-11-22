@@ -20,11 +20,23 @@
     <p class="subtitle">Write or spit your bars. If you land the rhymes, you win the crowd.</p>
   </header>
 
+  <div class="overlay" id="name-overlay">
+    <form class="card name-card" id="name-form">
+      <p class="kicker">Welcome to Rapmates</p>
+      <p class="big-title">Pick a name</p>
+      <input type="text" id="name-modal-input" maxlength="16" placeholder="Your name" autocomplete="nickname" autocapitalize="words" spellcheck="false" aria-label="Your name">
+      <button class="btn" type="submit">Let's go</button>
+    </form>
+  </div>
+
   <div id="lobby-card" class="card">
     <div class="slots" id="slots"></div>
     <p class="crowd" id="crowd-line" hidden></p>
 
     <div id="setup-view">
+      <label class="name-field" for="name-input">Your name
+        <input type="text" id="name-input" maxlength="16" placeholder="Pick a name" autocomplete="nickname" autocapitalize="words" spellcheck="false">
+      </label>
       <button class="btn" id="create-btn">Create room</button>
       <div class="or">or</div>
       <input type="text" id="room-input" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code">
@@ -88,7 +100,8 @@
         <div class="voice-pick" role="radiogroup" aria-label="Who spits it?">
           <span>Who spits it?</span>
           <button type="button" class="voice-opt" data-voice="self" role="radio">I'll rap it myself</button>
-          <button type="button" class="voice-opt" data-voice="tts" role="radio">Robot voice (TTS)</button>
+          <button type="button" class="voice-opt" data-voice="male" role="radio">Robot MC (Male)</button>
+          <button type="button" class="voice-opt" data-voice="female" role="radio">Robot MC (Female)</button>
         </div>
         <button class="btn" id="write-done">Done</button>
         <p class="write-status" id="write-status"></p>

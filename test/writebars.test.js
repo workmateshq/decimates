@@ -44,7 +44,7 @@ function writeBarsRoom(players = 2, crowd = 0, options, seed) {
 }
 
 const LINES = ['I grind every day', 'it stays on my mind', 'lines one two', 'and the end'];
-const allDone = (ctx, ids) => ids.forEach((id) => ctx.room.input(id, { type: 'done', lines: LINES, voice: 'tts' }));
+const allDone = (ctx, ids) => ids.forEach((id) => ctx.room.input(id, { type: 'done', lines: LINES }));
 // Runs every performance in the round to its end.
 function runBattle(ctx) {
   for (let guard = 0; ctx.room.phase === 'turn' && guard < 10; guard++) ctx.advance(ctx.room.turn.endAt + WB_GAP_MS - ctx.now());
@@ -127,7 +127,7 @@ test('unsubmitted drafts are performed when the clock runs out', () => {
   ctx.advance(WRITE_SECONDS * 1000 + WRITE_GRACE_MS);
   assert.equal(ctx.room.turn.rapperId, 'p1');
   assert.deepEqual(ctx.room.turn.lines, ['', '', '', '']);
-  assert.equal(ctx.room.turn.voice, 'tts', 'the robot voice by default');
+  assert.equal(ctx.room.turn.voice, 'male', 'the robot MC by default (P1: male)');
   ctx.advance(ctx.room.turn.endAt + WB_GAP_MS - ctx.now());
   assert.deepEqual(ctx.room.turn.lines, ['half', 'written', '', '']);
 });
@@ -143,7 +143,7 @@ test('lines are sanitised and limited on the host', () => {
   ctx.room.input('p1', { type: 'done', lines: ['y'.repeat(500), { evil: 1 }], voice: 'shout' });
   assert.equal(ctx.room.turn.lines[0].length, LINE_MAX);
   assert.equal(ctx.room.turn.lines[1], '');
-  assert.equal(ctx.room.turn.voice, 'tts', 'unknown voices are ignored');
+  assert.equal(ctx.room.turn.voice, 'male', 'unknown voices are ignored');
 });
 
 test('performance schedule: 4 intro bars + 8 bars, line k on the downbeat of performance bar 2k-1', () => {
@@ -179,7 +179,7 @@ test('performances go in seat order on 90 BPM tracks (never the same twice runni
   }
   assert.equal(turns.length, 12);
   assert.deepEqual(turns.slice(0, 4).map((t) => t.rapperId), ['p1', 'p2', 'p3', 'p4']);
-  assert.deepEqual(turns.slice(0, 4).map((t) => t.voiceGender), ['male', 'female', 'male', 'female']);
+  assert.deepEqual(turns.slice(0, 4).map((t) => t.voiceGender), ['male', 'female', 'male', 'female'], 'the default alternates by seat');
   assert.ok(turns.every((t) => Engine.VOICE_ACCENTS.includes(t.voiceAccent)), 'each performance gets a UK or American voice');
   assert.ok(turns.every((t) => t.bpm === 90 && Tracks.byId(t.trackId).bpm === 90));
   for (let i = 1; i < turns.length; i++) assert.notEqual(turns[i].trackId, turns[i - 1].trackId);
@@ -286,4 +286,13 @@ test('a shorter write timer for testing is clamped to 5-60 seconds', () => {
   assert.equal(ctx.room.wb.writeEndsAt - ctx.now(), 10000);
   assert.equal(writeBarsRoom(1, 0, { writeSeconds: 1 }).room.wb.writeMs, 5000);
   assert.equal(writeBarsRoom(1, 0, { writeSeconds: 600 }).room.wb.writeMs, 60000);
+});
+
+test('the robot MC speaks in the voice the rapper picked', () => {
+  const ctx = writeBarsRoom(2);
+  ctx.room.input('p1', { type: 'done', lines: LINES, voice: 'female' });
+  ctx.room.input('p2', { type: 'done', lines: LINES, voice: 'male' });
+  assert.equal(ctx.room.turn.voice, 'female');
+  assert.equal(ctx.room.turn.voiceGender, 'female');
+  ctx.advance(ctx.room.turn.endAt - ctx.now() + 1);
 });

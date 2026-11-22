@@ -34,6 +34,8 @@
   const WB_PAIRS = 2; // per rapper per round: lines 1-2 use pair A, lines 3-4 pair B
   const WB_BARS_PER_LINE = 2;
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
+  // Who performs Write Bars lines: the rapper live, or the robot MC with a male or female voice.
+  const VOICES = ['self', 'male', 'female'];
   const ADLIBS = ['faaah', 'damn']; // sfx/<name>.mp3, alternated
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
@@ -44,18 +46,14 @@
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Moody accents; green is kept for the ball and finished beats.
   const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8'];
-  // Real rapper names with a letter or two changed, half men and half women (the robot voice follows
-  // the gender), handed out at random (unique within a room).
-  const MALE_NAMES = [
-    'Gucci Mate', 'Drape', 'Bad Buddy', 'Brewsy J', 'Filler Mike', 'Guavo', 'Big Lunch', 'Violet J', 'Yung Bean',
-    'Lil Pain', 'Wu Tang Dan', 'Ludicrous', 'Exhibit', 'MF Broom', 'Snoop Hogg', 'Kendrick Llama', 'Nice Cube', '2Chins',
-  ];
-  const FEMALE_NAMES = [
-    'Lil Krim', 'Messy Elliott', 'Doja Brat', 'Cardio B', 'Nicki Mirage', 'Queen Latte-fah', 'Lauryn Grill',
-    'Megan Thee Scallion', 'Fizzo', 'Ewe', 'Rapsoda', 'Latte', 'Ice Slice', 'Malt', 'MC-67', 'Remy Mama',
-    'Doxxy Brown', 'MC Bite',
-  ];
-  const RAP_NAMES = [...MALE_NAMES, ...FEMALE_NAMES];
+  const NAME_MAX = 16; // characters in a player's name
+
+  // A name as typed: no control characters, spaces collapsed, at most NAME_MAX characters.
+  function sanitizeName(name) {
+    if (typeof name !== 'string') return '';
+    const clean = name.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').replace(/\s+/g, ' ').trim();
+    return Array.from(clean).slice(0, NAME_MAX).join('').trim();
+  }
 
   const randInt = (n, random = Math.random) => Math.floor(random() * n);
   const round2 = (x) => Math.round(x * 100) / 100;
@@ -150,21 +148,20 @@
       return [...this.members.values()].filter((m) => m.role === 'crowd').sort((a, b) => a.seq - b.seq);
     }
 
+    // Everyone picks their own name; a clash gets a number ("Zak 2"), and no name becomes "Rapper".
     pickName(preferredName) {
-      const used = new Set([...this.members.values()].map((m) => m.name));
-      if (preferredName && !used.has(preferredName) && RAP_NAMES.includes(preferredName)) return preferredName;
-      const free = RAP_NAMES.filter((n) => !used.has(n));
-      if (free.length) return free[randInt(free.length)];
-      // A very big crowd: number the names.
+      const used = new Set([...this.members.values()].map((m) => m.name.toLowerCase()));
+      const base = sanitizeName(preferredName) || 'Rapper';
+      if (!used.has(base.toLowerCase())) return base;
       for (let n = 2; ; n++) {
-        const name = `${RAP_NAMES[randInt(RAP_NAMES.length)]} ${n}`;
-        if (!used.has(name)) return name;
+        const name = `${Array.from(base).slice(0, NAME_MAX - String(n).length - 1).join('').trim()} ${n}`;
+        if (!used.has(name.toLowerCase())) return name;
       }
     }
 
     // Adds a member without messaging anyone; call announceJoin() after acknowledging the joiner.
     // The first 4 get rapper slots; everyone after that joins the crowd (watches and votes).
-    // preferredName keeps a name when moving to a new host after a handover.
+    // preferredName is the name the player picked (also kept when moving to a new host after a handover).
     join(id, preferredName) {
       if (this.members.has(id)) return { ok: false, error: 'Already in this room.' };
       const players = this.players;
@@ -259,7 +256,7 @@
      *   { type: 'vote', stars: 1-5, turn: turnIndex } rate the rapper whose turn just finished.
      *   The rapper can't vote for themselves; rappers and the crowd can vote for everyone else.
      *   Write Bars:
-     *   { type: 'draft'|'done', lines: [4 strings], voice: 'tts'|'self' } a rapper's lines so far, or locked in.
+     *   { type: 'draft'|'done', lines: [4 strings], voice: 'self'|'male'|'female' } a rapper's lines so far, or locked in.
      *   { type: 'votes', stars: { rapperId: 1-5, ... }, round } rate the round's performances (not your own).
      */
     input(id, msg) {
@@ -445,7 +442,9 @@
       wb.entries = new Map(writers.map((id) => {
         if (this.deck.length < WB_PAIRS) this.deck = Words.shuffledIndexes(Words.PAIRS.length, this.random);
         const pairs = this.deck.splice(0, WB_PAIRS).map((i) => Words.PAIRS[i].slice());
-        return [id, { pairs, lines: sanitizeLines([]), voice: 'tts', done: false }];
+        // The robot MC's default voice alternates by seat (P1 male, P2 female, ...) until the rapper picks.
+        const number = (this.members.get(id) || {}).number || 1;
+        return [id, { pairs, lines: sanitizeLines([]), voice: number % 2 ? 'male' : 'female', done: false }];
       }));
       wb.queue = [];
       wb.perf = -1;
@@ -463,7 +462,7 @@
       const entry = this.wb.entries.get(id);
       if (!entry || entry.done) return false;
       if (Array.isArray(lines)) entry.lines = sanitizeLines(lines);
-      if (voice === 'tts' || voice === 'self') entry.voice = voice;
+      if (VOICES.includes(voice)) entry.voice = voice;
       if (done) {
         entry.done = true;
         if (this.allWritten()) this.beginBattle();
@@ -508,7 +507,7 @@
         rapperId: id, startAt, endAt: startAt + turnLengthMs(track, WB_RAP_BARS), trackId: track.id, bpm: track.bpm,
         mode: 'writebars', rapBars: WB_RAP_BARS, fadeAfterBars: track.introBars + WB_RAP_BARS,
         lines: entry.lines.slice(), pairs: entry.pairs.map((pair) => pair.slice()), voice: entry.voice,
-        voiceGender: index % 2 === 0 ? 'male' : 'female', adlib: this.nextAdlib(),
+        voiceGender: entry.voice === 'female' ? 'female' : 'male', adlib: this.nextAdlib(),
         voiceAccent: VOICE_ACCENTS[Math.floor(this.random() * VOICE_ACCENTS.length)], perf: index, perfs: wb.queue.length, wbRound: wb.round,
       };
       this.phase = 'turn';
@@ -621,6 +620,7 @@
     GameRoom,
     VOICE_ACCENTS,
     ADLIBS,
+    VOICES,
     generateRoomCode,
     standingsOf,
     totalsStandingsOf,
@@ -652,8 +652,7 @@
     VOTE_SECONDS,
     SCORE_MS,
     PLAYER_COLORS,
-    RAP_NAMES,
-    MALE_NAMES,
-    FEMALE_NAMES,
+    NAME_MAX,
+    sanitizeName,
   };
 });

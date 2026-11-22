@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, RAP_NAMES, MALE_NAMES, FEMALE_NAMES, MAX_PLAYERS,
+  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
 } = require('../public/js/engine.js');
 const Words = require('../public/js/words.js');
 const Tracks = require('../public/js/tracks.js');
@@ -52,13 +52,10 @@ test('room codes are 4 letters without I or O', () => {
   for (let i = 0; i < 50; i++) assert.match(generateRoomCode(), /^[A-HJ-NP-Z]{4}$/);
 });
 
-test('names are punny rappers, an even mix of men and women, all unique', () => {
-  assert.equal(MALE_NAMES.length, FEMALE_NAMES.length);
-  assert.ok(MALE_NAMES.length >= 18);
-  assert.deepEqual(RAP_NAMES, [...MALE_NAMES, ...FEMALE_NAMES]);
-  assert.equal(new Set(RAP_NAMES).size, RAP_NAMES.length);
-  ['Snoop Hogg', 'Bad Buddy', 'Nice Cube', 'Kendrick Llama'].forEach((n) => assert.ok(MALE_NAMES.includes(n), n));
-  ['Cardio B', 'Doja Brat', 'Megan Thee Scallion', 'Messy Elliott'].forEach((n) => assert.ok(FEMALE_NAMES.includes(n), n));
+test('names are what players type: trimmed, no control characters, at most NAME_MAX characters', () => {
+  assert.equal(sanitizeName('  Zak \n the   Rapper  '), 'Zak the Rapper');
+  assert.equal(Array.from(sanitizeName('x'.repeat(40))).length, NAME_MAX);
+  assert.equal(sanitizeName(42), '');
 });
 
 test('the first 4 join as rappers P1-P4; the 5th and later join the crowd', () => {
@@ -74,19 +71,19 @@ test('the first 4 join as rappers P1-P4; the 5th and later join the crowd', () =
   assert.equal(room.join('p1').ok, false, 'no joining twice');
 });
 
-test('names are unique, even with a crowd bigger than the name list', () => {
+test('everyone keeps the name they picked; clashes get a number and no name becomes "Rapper"', () => {
   const { room } = makeRoom();
-  for (let i = 0; i < RAP_NAMES.length + 10; i++) room.join(`m${i}`);
-  const names = [...room.members.values()].map((m) => m.name);
-  assert.equal(new Set(names).size, names.length);
-});
-
-test('a preferred name is kept when it is free (moving to a new host)', () => {
-  const { room } = makeRoom();
-  room.join('a', 'Messy Elliott');
-  assert.equal(room.members.get('a').name, 'Messy Elliott');
-  room.join('b', 'Messy Elliott');
-  assert.notEqual(room.members.get('b').name, 'Messy Elliott');
+  room.join('a', 'Zak');
+  room.join('b', 'zak');
+  room.join('c', 'Zak');
+  room.join('d', '   ');
+  room.join('e');
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map((id) => room.members.get(id).name), ['Zak', 'zak 2', 'Zak 3', 'Rapper', 'Rapper 2']);
+  room.join('f', 'A very long name indeed');
+  assert.ok(Array.from(room.members.get('f').name).length <= NAME_MAX);
+  for (let i = 0; i < 20; i++) room.join(`m${i}`, 'Same');
+  const names = [...room.members.values()].map((m) => m.name.toLowerCase());
+  assert.equal(new Set(names).size, names.length, 'all unique');
 });
 
 test('between games a freed rapper slot goes to the longest-waiting crowd member', () => {
