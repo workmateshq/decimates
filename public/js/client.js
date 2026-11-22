@@ -217,7 +217,7 @@
 
   // ---------- Mic characters ----------
 
-  // A regular handheld mic: chrome mesh head, a thin ring in the player's colour, a plain black handle.
+  // A regular handheld mic: chrome mesh head, a silver collar and a plain black handle.
   // Ids are unique per drawing.
   let micId = 0;
   function micSvg(color) {
@@ -232,7 +232,6 @@
       <ellipse cx="50" cy="115" rx="14" ry="3" fill="rgba(0,0,0,.35)"/>
       <path d="M40 58h20l-4 50a6 6 0 0 1-12 0z" fill="url(#${id}h)"/>
       <rect x="37" y="52" width="26" height="9" rx="3" fill="url(#${id}r)"/>
-      <rect x="40" y="61" width="20" height="3" fill="${color}"/>
       <circle cx="50" cy="32" r="24" fill="url(#${id}c)"/>
       <g clip-path="url(#${id}g)" stroke="rgba(30,32,36,.45)" stroke-width="1.2">
         ${[...Array(14).keys()].map((i) => `<path d="M${i * 5 + 22} 4V60"/><path d="M20 ${i * 5 + 6}H80"/>`).join('')}
