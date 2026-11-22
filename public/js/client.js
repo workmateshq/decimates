@@ -861,6 +861,7 @@
       write.key = key;
       write.lines = ['', '', '', ''];
       write.done = !!(mine && mine.done);
+      write.saved = write.done;
       write.finalSent = false;
       write.lastTick = null;
       clearTimeout(write.draftTimer);
@@ -915,7 +916,8 @@
     });
     $('write-lines').querySelectorAll('input').forEach((input) => { input.disabled = write.done; });
     $('write-done').disabled = write.done;
-    $('write-done').textContent = write.done ? 'Locked in ✓' : 'Done';
+    $('write-done').textContent = write.done ? 'Locked in ✓' : write.saved ? 'Save and lock in' : 'Done';
+    $('write-edit').hidden = !write.done;
   }
 
   function renderWriters() {
@@ -948,10 +950,22 @@
     const p = state.phase;
     if (write.done || !p || p.phase !== 'write') return;
     write.done = true;
+    write.saved = true;
     sendDraft('done');
     playSfx('submit');
     renderWriteState();
     renderWriters();
+  });
+  // Finished early? Unlock, change things, then lock in again.
+  $('write-edit').addEventListener('click', () => {
+    const p = state.phase;
+    if (!write.done || !p || p.phase !== 'write') return;
+    write.done = false;
+    net.emit('input', { type: 'edit' });
+    renderWriteState();
+    renderWriters();
+    const first = $('write-0');
+    if (first) first.focus();
   });
 
   // The big clock: red and pulsing from 10 seconds, with a tick every second (twice a second, louder,

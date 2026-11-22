@@ -257,6 +257,7 @@
      *   The rapper can't vote for themselves; rappers and the crowd can vote for everyone else.
      *   Write Bars:
      *   { type: 'draft'|'done', lines: [4 strings], voice: 'self'|'male'|'female' } a rapper's lines so far, or locked in.
+     *   { type: 'edit' } unlock your locked-in lines to change them (while others are still writing).
      *   { type: 'votes', stars: { rapperId: 1-5, ... }, round } rate the round's performances (not your own).
      */
     input(id, msg) {
@@ -265,6 +266,7 @@
       if (!this.started) return false;
       if (msg.type === 'vote') return this.vote(id, msg.stars, msg.turn);
       if (msg.type === 'draft' || msg.type === 'done') return this.write(id, msg.lines, msg.voice, msg.type === 'done');
+      if (msg.type === 'edit') return this.unlockWrite(id);
       if (msg.type === 'votes') return this.rateAll(id, msg.stars, msg.round);
       return false;
     }
@@ -455,6 +457,16 @@
       this.turn = null;
       this.turnIndex = -1;
       if (announce) this.broadcast('phase', this.phasePayload());
+    }
+
+    // Back to writing after locking in, while the others are still going.
+    unlockWrite(id) {
+      if (this.mode !== 'writebars' || this.phase !== 'write') return false;
+      const entry = this.wb.entries.get(id);
+      if (!entry || !entry.done) return false;
+      entry.done = false;
+      this.broadcast('writers', { round: this.wb.round, writers: this.serializeWriters() });
+      return true;
     }
 
     write(id, lines, voice, done) {

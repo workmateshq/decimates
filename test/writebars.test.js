@@ -296,3 +296,18 @@ test('the robot MC speaks in the voice the rapper picked', () => {
   assert.equal(ctx.room.turn.voiceGender, 'female');
   ctx.advance(ctx.room.turn.endAt - ctx.now() + 1);
 });
+
+test('finished early: unlock to edit, then lock in again; the battle waits for everyone', () => {
+  const ctx = writeBarsRoom(2);
+  const { room } = ctx;
+  room.input('p1', { type: 'done', lines: ['first', 'try'] });
+  assert.equal(room.phase, 'write', 'still waiting for p2');
+  assert.ok(room.input('p1', { type: 'edit' }), 'p1 unlocks');
+  assert.equal(room.input('p1', { type: 'edit' }), false, 'already unlocked');
+  room.input('p2', { type: 'done', lines: LINES });
+  assert.equal(room.phase, 'write', 'p1 is editing, so no battle yet');
+  room.input('p1', { type: 'draft', lines: ['better', 'bars'] });
+  room.input('p1', { type: 'done', lines: ['better', 'bars', 'all', 'four'] });
+  assert.notEqual(room.phase, 'write', 'everyone locked in: battle');
+  assert.deepEqual(room.turn.lines, ['better', 'bars', 'all', 'four']);
+});
