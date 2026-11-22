@@ -305,7 +305,7 @@ test('when a game ends, free rapper slots go to the crowd', () => {
 
 test('the loop ticks at TICK_RATE', () => {
   assert.equal(TICK_RATE, 10);
-  assert.ok(Words.PAIRS.length === 60);
+  assert.ok(Words.PAIRS.length === 150);
 });
 
 test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always by the 4th', () => {

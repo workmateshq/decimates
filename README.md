@@ -87,7 +87,7 @@ Optional fields for files that don't quite fit: `skipBars` starts playback that 
 
 ## Rhyme pairs
 
-The 60 pairs in [`public/js/words.js`](public/js/words.js). In Freestyle, bar 1 of a couplet ends on word A, bar 2 on word B. In Write Bars each rapper gets 2 of them per round.
+The 150 pairs in [`public/js/words.js`](public/js/words.js). In Freestyle, bar 1 of a couplet ends on word A, bar 2 on word B. In Write Bars each rapper gets 2 of them per round.
 
 | # | A | B |
 |---|---|---|
@@ -151,6 +151,96 @@ The 60 pairs in [`public/js/words.js`](public/js/words.js). In Freestyle, bar 1 
 | 58 | vision | mission |
 | 59 | dream | team |
 | 60 | GOAT | boat |
+| 61 | money | sunny |
+| 62 | hater | later |
+| 63 | paper | skyscraper |
+| 64 | ride | pride |
+| 65 | fight | tight |
+| 66 | chain | champagne |
+| 67 | jewels | rules |
+| 68 | vinyl | final |
+| 69 | scratch | match |
+| 70 | DJ | replay |
+| 71 | verse | universe |
+| 72 | chorus | for us |
+| 73 | battle | rattle |
+| 74 | cypher | lifer |
+| 75 | punchline | crunch time |
+| 76 | freestyle | extra mile |
+| 77 | legit | commit |
+| 78 | savage | average |
+| 79 | icy | spicy |
+| 80 | bread | ahead |
+| 81 | level | rebel |
+| 82 | Grammy | Miami |
+| 83 | concrete | heartbeat |
+| 84 | subway | runway |
+| 85 | city | gritty |
+| 86 | rooftop | can't stop |
+| 87 | victory | history |
+| 88 | glory | story |
+| 89 | legacy | destiny |
+| 90 | energy | enemy |
+| 91 | danger | stranger |
+| 92 | thunder | under |
+| 93 | lightning | frightening |
+| 94 | storm | uniform |
+| 95 | ocean | motion |
+| 96 | rhythm | with 'em |
+| 97 | tempo | let go |
+| 98 | jacket | racket |
+| 99 | hoodie | goody |
+| 100 | shades | parades |
+| 101 | boots | roots |
+| 102 | chef | ref |
+| 103 | pizza | Mona Lisa |
+| 104 | taco | macho |
+| 105 | coffee | toffee |
+| 106 | pancake | earthquake |
+| 107 | dinosaur | encore |
+| 108 | alien | Australian |
+| 109 | llama | drama |
+| 110 | shark | dark |
+| 111 | tiger | writer |
+| 112 | monkey | funky |
+| 113 | kangaroo | breakthrough |
+| 114 | wizard | blizzard |
+| 115 | planet | granite |
+| 116 | moon | soon |
+| 117 | sunrise | surprise |
+| 118 | weekend | deep end |
+| 119 | Monday | someday |
+| 120 | holiday | payday |
+| 121 | homework | network |
+| 122 | teacher | preacher |
+| 123 | emails | details |
+| 124 | Wi-Fi | sky high |
+| 125 | phone | alone |
+| 126 | trending | never ending |
+| 127 | viral | spiral |
+| 128 | remix | quick fix |
+| 129 | respect | connect |
+| 130 | loyal | royal |
+| 131 | confidence | common sense |
+| 132 | hero | zero |
+| 133 | villain | chillin |
+| 134 | chill | thrill |
+| 135 | Ferrari | safari |
+| 136 | Lambo | Rambo |
+| 137 | limo | primo |
+| 138 | yacht | hot spot |
+| 139 | comeback | soundtrack |
+| 140 | backpack | snack pack |
+| 141 | basketball | wrecking ball |
+| 142 | slam dunk | funk |
+| 143 | hometown | touchdown |
+| 144 | trophy | show me |
+| 145 | medal | pedal |
+| 146 | finish line | every time |
+| 147 | galaxy | salary |
+| 148 | penguin | winning |
+| 149 | pirate | private |
+| 150 | selfie | healthy |
 
 ## Run locally
 

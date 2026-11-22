@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { PAIRS, buildBars, drawPairs, shuffledIndexes, BARS_PER_TURN, PAIRS_PER_TURN } = require('../public/js/words.js');
 
-test('there are 60 rhyming pairs', () => {
-  assert.equal(PAIRS.length, 60);
+test('there are 150 rhyming pairs', () => {
+  assert.equal(PAIRS.length, 150);
   PAIRS.forEach((pair) => {
     assert.equal(pair.length, 2);
     pair.forEach((w) => assert.ok(typeof w === 'string' && w.trim() === w && w.length > 1, `bad word ${w}`));
@@ -41,6 +41,6 @@ test('a turn has 16 bars from 8 pairs, changing pair every 2 bars', () => {
 });
 
 test('shuffledIndexes is a permutation', () => {
-  const s = shuffledIndexes(60);
-  assert.deepEqual([...s].sort((a, b) => a - b), [...Array(60).keys()]);
+  const s = shuffledIndexes(150);
+  assert.deepEqual([...s].sort((a, b) => a - b), [...Array(150).keys()]);
 });
