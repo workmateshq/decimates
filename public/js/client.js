@@ -309,7 +309,7 @@
   const PREVIEW = { id: 'preview', number: 1, name: 'You', color: Engine.PLAYER_COLORS[0] };
 
   function buildSlots() {
-    $('slots').replaceChildren(...[1, 2, 3, 4].map((n) => {
+    $('slots').replaceChildren(...Array.from({ length: Engine.MAX_PLAYERS }, (_, i) => i + 1).map((n) => {
       const slot = document.createElement('div');
       slot.className = 'slot';
       slot.innerHTML = `<span class="slot-num">P${n}</span><svg class="avatar" viewBox="0 0 100 120" aria-hidden="true"></svg>`
@@ -732,6 +732,7 @@
     }
     const rapperId = state.phase && state.phase.turn && state.phase.phase !== 'results' ? state.phase.turn.rapperId : null;
     const players = state.lobby.players;
+    chips.classList.toggle('many', players.length > 4);
     chips.replaceChildren(...players.map((p) => {
       const chip = document.createElement('div');
       chip.className = `chip-p${p.id === rapperId ? ' on-mic' : ''}`;
@@ -1162,6 +1163,7 @@
     const ranked = standings.map((r, i) => ({ ...r, place: places[i] }));
     const display = ranked.length >= 2 ? [ranked[1], ranked[0], ...ranked.slice(2)] : ranked;
     const HEIGHTS = { 1: 150, 2: 112, 3: 84, 4: 62 };
+    $('podium').classList.toggle('many', display.length > 4);
     $('podium').replaceChildren(...display.map((r, i) => {
       const step = document.createElement('div');
       step.className = 'step';

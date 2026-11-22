@@ -19,7 +19,7 @@ function seeded(seed) {
 
 // A room with a manual clock and loop that records every message it sends. The existing tests cover
 // Freestyle; Write Bars (the default mode) has its own tests in writebars.test.js.
-function makeRoom(mode = 'freestyle') {
+function makeRoom(mode = 'freestyle', maxPlayers) {
   const sent = [];
   let tickFn = null;
   let clock = 1000;
@@ -30,6 +30,7 @@ function makeRoom(mode = 'freestyle') {
     clearInterval: () => { tickFn = null; },
     random: seeded(7),
     now: () => clock,
+    maxPlayers,
   });
   room.mode = mode;
   // Moves the clock on and lets the room's loop notice.
@@ -39,7 +40,7 @@ function makeRoom(mode = 'freestyle') {
 }
 
 function startedRoom(players = 2, crowd = 0) {
-  const ctx = makeRoom();
+  const ctx = makeRoom('freestyle', crowd ? players : undefined);
   for (let i = 1; i <= players + crowd; i++) ctx.room.join(`p${i}`);
   ctx.room.start('p1');
   return ctx;
@@ -58,12 +59,13 @@ test('names are what players type: trimmed, no control characters, at most NAME_
   assert.equal(sanitizeName(42), '');
 });
 
-test('the first 4 join as rappers P1-P4; the 5th and later join the crowd', () => {
+test('the first 8 join as rappers P1-P8; the 9th and later join the crowd', () => {
   const { room } = makeRoom();
-  for (let i = 1; i <= 7; i++) assert.ok(room.join(`p${i}`).ok);
-  assert.deepEqual(room.players.map((p) => p.number), [1, 2, 3, 4]);
-  assert.equal(new Set(room.players.map((p) => p.color)).size, 4);
-  assert.deepEqual(room.crowd.map((m) => m.id), ['p5', 'p6', 'p7']);
+  for (let i = 1; i <= 11; i++) assert.ok(room.join(`p${i}`).ok);
+  assert.equal(MAX_PLAYERS, 8);
+  assert.deepEqual(room.players.map((p) => p.number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(new Set(room.players.map((p) => p.color)).size, 8, 'everyone has their own colour');
+  assert.deepEqual(room.crowd.map((m) => m.id), ['p9', 'p10', 'p11']);
   assert.ok(room.crowd.every((m) => m.role === 'crowd' && m.number === null));
   const lobby = room.lobbyPayload();
   assert.equal(lobby.players.length, MAX_PLAYERS);
@@ -88,16 +90,16 @@ test('everyone keeps the name they picked; clashes get a number and no name beco
 
 test('between games a freed rapper slot goes to the longest-waiting crowd member', () => {
   const { room } = makeRoom();
-  for (let i = 1; i <= 6; i++) room.join(`p${i}`);
+  for (let i = 1; i <= 10; i++) room.join(`p${i}`);
   room.leave('p2');
-  const promoted = room.members.get('p5');
+  const promoted = room.members.get('p9');
   assert.equal(promoted.role, 'player');
   assert.equal(promoted.number, 2);
-  assert.deepEqual(room.crowd.map((m) => m.id), ['p6']);
+  assert.deepEqual(room.crowd.map((m) => m.id), ['p10']);
 });
 
 test('the host hands over to the next rapper, then the crowd', () => {
-  const { room, last } = makeRoom();
+  const { room, last } = makeRoom('freestyle', 4);
   ['a', 'b', 'c', 'd', 'e'].forEach((id) => room.join(id));
   assert.equal(room.hostId, 'a');
   room.leave('a');

@@ -19,7 +19,7 @@ function seeded(seed) {
   };
 }
 
-function makeRoom(seed = 7) {
+function makeRoom(seed = 7, maxPlayers) {
   const sent = [];
   let tickFn = null;
   let clock = 1000;
@@ -30,6 +30,7 @@ function makeRoom(seed = 7) {
     clearInterval: () => { tickFn = null; },
     random: seeded(seed),
     now: () => clock,
+    maxPlayers,
   });
   const advance = (ms) => { clock += ms; if (tickFn) tickFn(); };
   const last = (ev, to) => [...sent].reverse().find((m) => m.ev === ev && (!to || m.to === to));
@@ -37,7 +38,7 @@ function makeRoom(seed = 7) {
 }
 
 function writeBarsRoom(players = 2, crowd = 0, options, seed) {
-  const ctx = makeRoom(seed);
+  const ctx = makeRoom(seed, crowd ? players : undefined);
   for (let i = 1; i <= players + crowd; i++) ctx.room.join(`p${i}`);
   ctx.room.start('p1', options);
   return ctx;
@@ -310,4 +311,18 @@ test('finished early: unlock to edit, then lock in again; the battle waits for e
   room.input('p1', { type: 'done', lines: ['better', 'bars', 'all', 'four'] });
   assert.notEqual(room.phase, 'write', 'everyone locked in: battle');
   assert.deepEqual(room.turn.lines, ['better', 'bars', 'all', 'four']);
+});
+
+test('a full room of 8: everyone gets their own pairs and performs in seat order', () => {
+  const ctx = writeBarsRoom(8);
+  const p = ctx.last('gameStarted').data;
+  assert.equal(p.writers.length, 8);
+  assert.equal(new Set(p.writers.flatMap((w) => w.pairs.map((pair) => pair.join('/')))).size, 16, 'no shared pairs');
+  allDone(ctx, ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']);
+  const order = [];
+  for (let guard = 0; ctx.room.phase === 'turn' && guard < 20; guard++) {
+    order.push(ctx.room.turn.rapperId);
+    ctx.advance(ctx.room.turn.endAt + WB_GAP_MS - ctx.now());
+  }
+  assert.deepEqual(order, ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']);
 });

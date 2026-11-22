@@ -2,7 +2,7 @@
 /* ---------- Lobby ---------- */
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
 .slot {
-  border: 1px dashed #333; border-radius: var(--radius); padding: 8px 4px 10px; min-height: 138px;
+  border: 1px dashed #333; border-radius: var(--radius); padding: 6px 4px 8px; min-height: 112px;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
   color: #5c5a56; background: rgba(0, 0, 0, 0.35); position: relative; overflow: hidden;
 }
@@ -10,8 +10,8 @@
 .slot.filled::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--pc); }
 .slot .slot-num { font-size: 11px; color: #6b6862; letter-spacing: 2px; }
 .slot.filled .slot-num { color: var(--pc); }
-.slot .avatar { width: 52px; height: 62px; }
-.slot .slot-name { font-family: var(--street); font-size: 16px; line-height: 1.05; text-align: center; padding: 0 2px; overflow-wrap: anywhere; }
+.slot .avatar { width: 40px; height: 48px; }
+.slot .slot-name { font-family: var(--street); font-size: 15px; line-height: 1.05; text-align: center; padding: 0 2px; overflow-wrap: anywhere; }
 .slot .slot-tag { font-size: 10px; color: var(--gold); letter-spacing: 1.5px; min-height: 14px; }
 @keyframes pop-in { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
 .crowd { font-size: 14px; color: var(--muted); margin: -4px 0 8px; }

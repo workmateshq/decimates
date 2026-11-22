@@ -2,7 +2,7 @@
 //   Write Bars (the default): every rapper gets 2 rhyme pairs and 60 seconds to write 4 lines, then each
 //     performs them over 8 bars (read out live or by a robot voice), the room rates every performance
 //     out of 5 stars, and after 3 rounds the most stars takes the mic.
-//   Freestyle: up to 4 rappers take turns spitting 16 bars over a backing track, everybody else in the
+//   Freestyle: up to 8 rappers take turns spitting 16 bars over a backing track, everybody else in the
 //     room (other rappers and the crowd) rates each turn out of 5 stars, and the best average takes the mic.
 // Runs in the host's browser (window.RapmatesEngine) and in Node for tests
 // (require). It knows nothing about networking: the caller supplies broadcast(event, data) and
@@ -17,7 +17,7 @@
   else root.RapmatesEngine = factory(root.RapmatesWords, root.RapmatesTracks);
 })(typeof self !== 'undefined' ? self : this, (Words, Tracks) => {
   const TICK_RATE = 10; // phase checks per second; turns themselves are absolute timestamps
-  const MAX_PLAYERS = 4;
+  const MAX_PLAYERS = 8;
   const BARS = Words.BARS_PER_TURN; // 16
   const BEATS_PER_BAR = Words.BEATS_PER_BAR; // 4
   const COUNT_IN_BEATS = 8; // "8 ... 1" over the last two intro bars
@@ -45,7 +45,7 @@
   const LINE_MAX = 80; // characters per line
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Moody accents; green is kept for the ball and finished beats.
-  const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8'];
+  const PLAYER_COLORS = ['#E5484D', '#4FB3D9', '#F2A93B', '#A07BE8', '#E879B9', '#5B7FE8', '#C98B5A', '#6FCFB6'];
   const NAME_MAX = 16; // characters in a player's name
 
   // A name as typed: no control characters, spaces collapsed, at most NAME_MAX characters.
@@ -111,6 +111,7 @@
       this.setInterval = hooks.setInterval || ((fn, ms) => setInterval(fn, ms));
       this.clearInterval = hooks.clearInterval || ((id) => clearInterval(id));
       this.random = hooks.random || Math.random;
+      this.maxPlayers = Math.min(MAX_PLAYERS, hooks.maxPlayers || MAX_PLAYERS); // rapper slots (tests use fewer)
       this.now = hooks.now || (() => Date.now());
       this.leadMs = hooks.leadMs ?? LEAD_MS;
       this.hostId = null;
@@ -139,7 +140,7 @@
       return this.members.size;
     }
 
-    // Rappers (players with a P1-P4 slot), by number.
+    // Rappers (players with a P1-P8 slot), by number.
     get players() {
       return [...this.members.values()].filter((m) => m.role === 'player').sort((a, b) => a.number - b.number);
     }
@@ -160,13 +161,13 @@
     }
 
     // Adds a member without messaging anyone; call announceJoin() after acknowledging the joiner.
-    // The first 4 get rapper slots; everyone after that joins the crowd (watches and votes).
+    // The first 8 get rapper slots; everyone after that joins the crowd (watches and votes).
     // preferredName is the name the player picked (also kept when moving to a new host after a handover).
     join(id, preferredName) {
       if (this.members.has(id)) return { ok: false, error: 'Already in this room.' };
       const players = this.players;
       const member = { id, name: this.pickName(preferredName), seq: ++this.seq };
-      if (players.length < MAX_PLAYERS) {
+      if (players.length < this.maxPlayers) {
         const taken = new Set(players.map((p) => p.number));
         let number = 1;
         while (taken.has(number)) number++;
@@ -208,7 +209,7 @@
 
     // Between games, free rapper slots go to whoever's waited longest in the crowd.
     fillSlots() {
-      for (let number = 1; number <= MAX_PLAYERS; number++) {
+      for (let number = 1; number <= this.maxPlayers; number++) {
         if (this.players.some((p) => p.number === number)) continue;
         const promoted = this.crowd[0];
         if (!promoted) return;
