@@ -450,7 +450,8 @@
   }
 
   // ---------- Your name ----------
-  // Everyone picks their own name; it's remembered on this device and sent when entering a room.
+  // Everyone picks their own name in a pop-up when creating, joining or opening a room link (filled in with
+  // the last one used on this device); solo practice only asks if there isn't one yet.
   const NAME_KEY = 'rapmates-name';
   function savedName() {
     try { return Engine.sanitizeName(localStorage.getItem(NAME_KEY) || ''); } catch { return ''; }
@@ -459,35 +460,34 @@
     const clean = Engine.sanitizeName(name);
     try { localStorage.setItem(NAME_KEY, clean); } catch { /* private mode */ }
     net.setName(clean);
-    if ($('name-input').value !== clean && document.activeElement !== $('name-input')) $('name-input').value = clean;
     return clean;
   }
-  $('name-input').value = savedName();
   net.setName(savedName());
-  $('name-input').addEventListener('input', () => {
-    const clean = Engine.sanitizeName($('name-input').value);
-    try { localStorage.setItem(NAME_KEY, clean); } catch { /* private mode */ }
-    net.setName(clean);
-  });
-  // Runs `then` once there's a name, asking for one first if needed.
+  // Runs `then` once there's a name: asks in the pop-up (always, or only if there isn't one yet).
   let afterName = null;
-  function withName(then) {
-    const name = Engine.sanitizeName($('name-input').value) || savedName();
-    if (name) {
-      saveName(name);
+  function withName(then, { always = false } = {}) {
+    const name = savedName();
+    if (name && !always) {
+      net.setName(name);
       return then();
     }
     afterName = then;
-    $('name-modal-input').value = '';
+    $('name-modal-input').value = name;
     $('name-overlay').classList.add('show');
-    setTimeout(() => $('name-modal-input').focus(), 50);
+    setTimeout(() => { $('name-modal-input').focus(); $('name-modal-input').select(); }, 50);
   }
+  // Escape or a click outside the card backs out without doing anything.
+  function cancelName() {
+    afterName = null;
+    $('name-overlay').classList.remove('show');
+  }
+  $('name-overlay').addEventListener('click', (e) => { if (e.target === $('name-overlay')) cancelName(); });
+  $('name-modal-input').addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelName(); });
   $('name-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = Engine.sanitizeName($('name-modal-input').value);
     if (!name) return $('name-modal-input').focus();
     saveName(name);
-    $('name-input').value = name;
     $('name-overlay').classList.remove('show');
     const then = afterName;
     afterName = null;
@@ -497,14 +497,14 @@
   $('create-btn').addEventListener('click', () => withName(() => {
     setConnecting(true);
     net.emit('createRoom', handleJoinResponse);
-  }));
+  }, { always: true }));
   $('join-btn').addEventListener('click', () => {
     const code = $('room-input').value.trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(code)) return showError('Enter a 4-letter room code.');
     withName(() => {
       setConnecting(true);
       net.emit('joinRoom', code, handleJoinResponse);
-    });
+    }, { always: true });
   });
   $('room-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') $('join-btn').click();
@@ -648,7 +648,7 @@
     withName(() => {
       setConnecting(true);
       net.emit('enterRoom', requested, handleJoinResponse);
-    });
+    }, { always: true });
   }
 
   // ---------- Game: phases from the host ----------

@@ -94,8 +94,7 @@ input[type="text"] {
 input[type="text"]:focus { outline: none; border-color: var(--gold); }
 input[type="text"]::placeholder { color: #5c5a56; }
 /* Name inputs: as typed, not the room-code style. */
-#name-input, #name-modal-input { text-transform: none; letter-spacing: 0; font-weight: 800; font-size: 20px; }
-.name-field { display: block; margin-bottom: 14px; color: var(--muted); font-size: 14px; text-align: left; }
+#name-modal-input { text-transform: none; letter-spacing: 0; font-weight: 800; font-size: 20px; }
 .name-card { width: min(420px, 92vw); display: flex; flex-direction: column; gap: 12px; text-align: center; }
 .name-card input { margin: 4px 0; }
 .track-select {

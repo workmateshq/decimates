@@ -34,9 +34,6 @@
     <p class="crowd" id="crowd-line" hidden></p>
 
     <div id="setup-view">
-      <label class="name-field" for="name-input">Your MC name
-        <input type="text" id="name-input" maxlength="16" placeholder="Gucci Maynard" autocomplete="nickname" autocapitalize="words" spellcheck="false">
-      </label>
       <button class="btn" id="create-btn">Create room</button>
       <div class="or">or</div>
       <input type="text" id="room-input" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code">
@@ -61,13 +58,13 @@
       <p class="hint" id="reconnect-hint" style="display:none;"></p>
       <!-- Room code details are hidden for link rooms like /rapmates/mate -->
       <div class="room-details">
-        <div class="room-label">Room Code</div>
+        <div class="room-label">Room code</div>
         <div class="room-display" id="room-code-txt">----</div>
         <div class="share">
           <input type="text" id="share-link" readonly aria-label="Invite link">
           <button class="btn blue small" id="copy-btn">Copy link</button>
         </div>
-        <p class="hint">Send this link to your mates. They join straight away, no code needed. Anyone after the first 4 joins the crowd and votes.</p>
+        <p class="hint">Send this link to your mates. They join straight away, no code needed. Anyone after the first 8 joins the crowd and votes.</p>
         <button class="btn ghost" id="leave-btn">Leave room</button>
       </div>
     </div>
