@@ -249,7 +249,6 @@
         <path d="M31 62q19 30 38 0" stroke="#a87a10" stroke-width="1" fill="none" stroke-dasharray="3.2 1.8" transform="translate(0 1.2)"/>
         <rect x="44" y="76" width="12" height="13" rx="2.5" fill="#F6C445" stroke="#a87a10" stroke-width="1.2"/><path d="M47 83h6" stroke="#a87a10" stroke-width="1.6"/>` : ''}`;
   }
-  $('mascot').innerHTML = micSvg('#E5484D', { chain: true, bandana: true });
 
   // ---------- Backing tracks ----------
   // Every track is fetched and decoded as soon as you're in a room or start solo practice, so a turn
