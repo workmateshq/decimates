@@ -308,3 +308,15 @@ test('the loop ticks at TICK_RATE', () => {
   assert.equal(TICK_RATE, 10);
   assert.ok(Words.PAIRS.length === 60);
 });
+
+test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always by the 4th', () => {
+  for (const r of [0, 0.49, 0.51, 0.99]) {
+    const room = new GameRoom('TEST', { broadcast() {}, send() {}, setInterval: () => 1, clearInterval() {}, random: () => r, now: () => 0 });
+    const picks = Array.from({ length: 24 }, () => room.nextAdlib());
+    const gaps = [];
+    let last = -1;
+    picks.forEach((p, i) => { if (p) { gaps.push(i - last); last = i; } });
+    assert.ok(gaps.length >= 6, `${gaps.length} ad-libs in 24 turns`);
+    gaps.forEach((g) => assert.ok(g >= 3 && g <= 4, `gap ${g}`));
+  }
+});

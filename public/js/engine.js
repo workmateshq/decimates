@@ -118,6 +118,7 @@
       this.members = new Map(); // id -> { id, role: 'player'|'crowd', number, name, color, seq }
       this.seq = 0;
       this.lastTrackId = null; // never the same track twice in a row
+      this.adlibGap = 0; // turns since the last "faaah" ad-lib
       this.started = false;
       this.loop = null;
       this.round = 0;
@@ -318,7 +319,7 @@
       this.turnIndex = index;
       const track = Tracks.pickTrack(this.lastTrackId, this.random);
       this.lastTrackId = track.id;
-      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(track), pairs, trackId: track.id, bpm: track.bpm };
+      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(track), pairs, trackId: track.id, bpm: track.bpm, adlib: this.nextAdlib() };
       this.votes = new Map();
       this.phase = 'turn';
       if (announce) this.broadcast('phase', this.phasePayload());
@@ -505,7 +506,7 @@
         rapperId: id, startAt, endAt: startAt + turnLengthMs(track, WB_RAP_BARS), trackId: track.id, bpm: track.bpm,
         mode: 'writebars', rapBars: WB_RAP_BARS, fadeAfterBars: track.introBars + WB_RAP_BARS,
         lines: entry.lines.slice(), pairs: entry.pairs.map((pair) => pair.slice()), voice: entry.voice,
-        voiceGender: index % 2 === 0 ? 'male' : 'female',
+        voiceGender: index % 2 === 0 ? 'male' : 'female', adlib: this.nextAdlib(),
         voiceAccent: VOICE_ACCENTS[Math.floor(this.random() * VOICE_ACCENTS.length)], perf: index, perfs: wb.queue.length, wbRound: wb.round,
       };
       this.phase = 'turn';
@@ -596,6 +597,14 @@
         if (this.writeBarsVoters().every((v) => this.hasRatedAll(v))) this.closeRoundVote();
         else this.broadcast('votes', this.serializeVotes());
       }
+    }
+
+    // About every 3rd turn gets the "faaah" ad-lib: never two turns running, 50/50 on the 3rd, always by the 4th.
+    nextAdlib() {
+      this.adlibGap += 1;
+      const yes = this.adlibGap >= 4 || (this.adlibGap === 3 && this.random() < 0.5);
+      if (yes) this.adlibGap = 0;
+      return yes;
     }
 
     stopLoop() {
