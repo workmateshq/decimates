@@ -28,7 +28,7 @@ Play it at **https://workmateshq.github.io/rapmates/** or jump straight into the
 
 ### Everything else
 
-- **Mic drop**: when a rapper finishes (16 bars in Freestyle, 4 lines in Write Bars), a 3-second takeover darkens the screen while mics rain down and "Mic drop!" jumps in with the rapper's avatar; then the vote opens.
+- **Mic drop**: when a rapper finishes (16 bars in Freestyle, 4 lines in Write Bars), a 5-second takeover darkens the screen while mics rain down and "Mic drop!" jumps in with the rapper's avatar; then the vote opens.
 - **Avatars**: every rapper gets a DiceBear Initial Face in a disc of their colour next to their name (lobby, top bar, Get ready card, scores, podium). It spins in at the start of a turn and takes a bow at the end.
 - **Ad-lib**: about every 3rd turn (never two running, always by the 4th; the host decides so the whole room hears it) an ad-lib plays on the beat, alternating "faaah" and "damn" ([`public/sfx/`](public/sfx/)): its hit lands on the downbeat of bar 13 in Freestyle, and on the last beat of bar 6 (just before the last line) in Write Bars. `?debug&adlib` plays one on every turn (`?debug&adlib=damn` for just that one).
 - **Tracks** (in [`public/tracks/`](public/tracks/)): Brooklyn Old School, Harlem Boom Bap, Detroit Horrorcore, Long Beach G-Funk, The Bronx Jazz Hop, Memphis Dirty South, Nashville Bro Country and Havana Reggaeton, all at 90 BPM (the tempo isn't shown in the game). If a track can't be loaded, a synthesized fallback beat at the same tempo plays instead ([`public/js/beats.js`](public/js/beats.js)).

@@ -39,8 +39,8 @@
   const ADLIBS = ['faaah', 'damn']; // sfx/<name>.mp3, alternated
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
-  const WB_GAP_MS = 3000; // after a performance: the golf clap while the track fades
-  const MIC_DROP_MS = 3000; // Freestyle: the mic-drop takeover after 16 bars, before the vote
+  const MIC_DROP_MS = 5000; // the mic-drop takeover after a rapper finishes, before the vote / next rapper
+  const WB_GAP_MS = MIC_DROP_MS; // Write Bars: after a performance (golf clap and mic drop while the track fades)
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer
   const STANDINGS_MS = 8000; // the scoreboard between rounds
   const LINE_MAX = 80; // characters per line
