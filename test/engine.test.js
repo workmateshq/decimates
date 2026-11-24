@@ -356,14 +356,14 @@ test('a game opens with the intro screen (the rules over a beat); the host can s
   assert.equal(ctx.room.phase, 'write');
 });
 
-test('the round-end voiceover cycles 1-4 across turns, picked by the host', () => {
-  const ctx = startedRoom(4, 1);
+test('the round-end voiceover cycles 1-5 across turns, picked by the host', () => {
+  const ctx = startedRoom(6, 1);
   const seen = [];
-  for (let t = 0; t < 4; t++) {
+  for (let t = 0; t < 6; t++) {
     seen.push(ctx.room.turn.roundEnd);
     finishRap(ctx);
     ctx.advance(VOTE_SECONDS * 1000);
     ctx.advance(SCORE_MS);
   }
-  assert.deepEqual(seen, [1, 2, 3, 4]);
+  assert.deepEqual(seen, [1, 2, 3, 4, 5, 1]);
 });
