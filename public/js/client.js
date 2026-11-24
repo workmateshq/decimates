@@ -314,21 +314,29 @@
     ['sfx/intro-beat.mp3', 'sfx/intro-write-bars.mp3', 'sfx/intro-freestyle.mp3'].forEach((url) => introSample(url).catch(() => {}));
     Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
-  // The golf clap when a rapper finishes, then the round-end sting a couple of seconds later. Both are
+  // The golf clap when a rapper finishes, then the round-end voiceover a couple of seconds later (the clap dips under it). Both are
   // tied to this turn's audio, so they stop if the turn does (e.g. going home).
   function playClap() {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
-    const play = (buffer, at) => {
+    const play = (buffer, at, dest) => {
       if (!buffer) return;
       const src = ac.createBufferSource();
       src.buffer = buffer;
-      src.connect(sfxGain);
+      src.connect(dest);
       src.start(at);
       if (stage.audio) stage.audio.clicks.push(src);
     };
-    play(clapBuffer, t);
-    play(roundEndBuffer, t + ROUND_END_DELAY);
+    // The clap dips under the voiceover when it comes in.
+    const clapGain = ac.createGain();
+    clapGain.connect(sfxGain);
+    if (roundEndBuffer) {
+      const v = t + ROUND_END_DELAY;
+      clapGain.gain.setValueAtTime(1, v - 0.2);
+      clapGain.gain.linearRampToValueAtTime(0.25, v + 0.15);
+    }
+    play(clapBuffer, t, clapGain);
+    play(roundEndBuffer, t + ROUND_END_DELAY, sfxGain);
   }
   const trackLabel = (t) => t.name;
 
