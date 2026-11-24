@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
+  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MIC_DROP_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
 } = require('../public/js/engine.js');
 const Words = require('../public/js/words.js');
 const Tracks = require('../public/js/tracks.js');
@@ -46,8 +46,8 @@ function startedRoom(players = 2, crowd = 0) {
   return ctx;
 }
 
-// Runs the current turn to the end of its 16 bars.
-const finishRap = (ctx) => ctx.advance(ctx.room.turn.endAt - ctx.now());
+// Runs the current turn to the end of its 16 bars and the mic-drop pause after them.
+const finishRap = (ctx) => ctx.advance(ctx.room.turn.endAt + MIC_DROP_MS - ctx.now());
 
 test('room codes are 4 letters without I or O', () => {
   for (let i = 0; i < 50; i++) assert.match(generateRoomCode(), /^[A-HJ-NP-Z]{4}$/);
@@ -320,4 +320,12 @@ test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always
     assert.ok(gaps.length >= 6, `${gaps.length} ad-libs in 24 turns`);
     gaps.forEach((g) => assert.ok(g >= 3 && g <= 4, `gap ${g}`));
   }
+});
+
+test('Freestyle: a 3-second mic drop after the 16 bars, then the vote', () => {
+  const ctx = startedRoom(2);
+  ctx.advance(ctx.room.turn.endAt - ctx.now());
+  assert.equal(ctx.room.phase, 'turn', 'the mic drop plays first');
+  ctx.advance(MIC_DROP_MS);
+  assert.equal(ctx.room.phase, 'vote');
 });

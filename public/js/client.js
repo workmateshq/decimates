@@ -229,6 +229,18 @@
 
   // ---------- Mic characters ----------
 
+  // Rapper avatars: DiceBear's "Initial Face" (CC0, https://www.dicebear.com/styles/initial-face/), seeded
+  // by name so everyone in the room sees the same face. Shown in a disc in the player's colour.
+  const avatarUrl = (name) => `https://api.dicebear.com/10.x/initial-face/svg?seed=${encodeURIComponent(name || 'Rapper')}`;
+  const avatarImg = (name, cls = '') => `<img class="av ${cls}" src="${avatarUrl(name)}" alt="" draggable="false" decoding="async">`;
+  // Replays a one-off animation class on an element.
+  function replay(el, cls) {
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
   // A regular handheld mic: chrome mesh head, a silver collar and a plain black handle.
   // Ids are unique per drawing.
   let micId = 0;
@@ -312,7 +324,7 @@
     $('slots').replaceChildren(...Array.from({ length: Engine.MAX_PLAYERS }, (_, i) => i + 1).map((n) => {
       const slot = document.createElement('div');
       slot.className = 'slot';
-      slot.innerHTML = `<span class="slot-num">P${n}</span><svg class="avatar" viewBox="0 0 100 120" aria-hidden="true"></svg>`
+      slot.innerHTML = `<span class="slot-num">P${n}</span><span class="avatar" aria-hidden="true"></span>`
         + '<span class="slot-name"></span><span class="slot-tag"></span>';
       return slot;
     }));
@@ -332,7 +344,7 @@
       slot.classList.toggle('filled', !!p);
       slot.classList.toggle('you', !!isYou);
       slot.style.setProperty('--pc', p ? p.color : '#ccc');
-      slot.querySelector('.avatar').innerHTML = p ? micSvg(p.color) : '<circle cx="50" cy="40" r="26" fill="none" stroke="#3a3835" stroke-width="2" stroke-dasharray="5 6"/>';
+      slot.querySelector('.avatar').innerHTML = p ? avatarImg(p === PREVIEW ? savedName() || p.name : p.name) : '<span class="av av-empty"></span>';
       slot.querySelector('.slot-name').textContent = p ? p.name : 'Open mic';
       slot.querySelector('.slot-tag').textContent = slotTag(p, isYou);
     });
@@ -692,7 +704,42 @@
     showResults(over);
   });
 
+  // ---------- Mic drop: a full-screen takeover with mics raining down ----------
+  let micDropTimer = null;
+  function showMicDrop() {
+    const turn = stage.turn;
+    if (!turn) return;
+    const box = $('mic-drop');
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const count = reduce ? 0 : window.innerWidth < 640 ? 22 : 38;
+    $('mic-rain').innerHTML = Array.from({ length: count }, (_, i) => {
+      const size = 34 + Math.random() * 46;
+      const left = (i / count) * 100 + (Math.random() - 0.5) * (100 / count);
+      const delay = Math.random() * 1.6;
+      const dur = 1.1 + Math.random() * 1.1;
+      const spin = (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 300);
+      const tilt = (Math.random() - 0.5) * 60;
+      return `<svg class="rain-mic" viewBox="0 0 100 120" aria-hidden="true" style="left:${left.toFixed(1)}%;width:${size.toFixed(0)}px;`
+        + `animation-delay:${delay.toFixed(2)}s;animation-duration:${dur.toFixed(2)}s;--r0:${tilt.toFixed(0)}deg;--r1:${(tilt + spin).toFixed(0)}deg">${micSvg(turn.color)}</svg>`;
+    }).join('');
+    $('mic-drop-av').innerHTML = avatarImg(turn.name, 'hello');
+    $('mic-drop-av').style.setProperty('--pc', turn.color);
+    $('mic-drop-name').textContent = turn.rapperId === state.playerId || stage.solo ? 'You killed it!' : turn.name;
+    box.classList.remove('show');
+    void box.offsetWidth;
+    box.classList.add('show');
+    clearTimeout(micDropTimer);
+    micDropTimer = setTimeout(hideMicDrop, Engine.MIC_DROP_MS);
+  }
+  function hideMicDrop() {
+    clearTimeout(micDropTimer);
+    micDropTimer = null;
+    $('mic-drop').classList.remove('show');
+    $('mic-rain').replaceChildren();
+  }
+
   function hideOverlays() {
+    hideMicDrop();
     document.querySelectorAll('.overlay:not(#name-overlay)').forEach((o) => o.classList.remove('show'));
   }
 
@@ -745,7 +792,7 @@
         const r = state.game.results.find((x) => x.id === p.id);
         score = r ? (r.average === null ? '–' : `${r.average.toFixed(1)}★`) : '';
       }
-      chip.innerHTML = `<span class="dot">P${p.number}</span><span class="name">${esc(p.name)}${p.id === state.playerId ? ' (you)' : ''}</span>${score ? `<span class="score">${score}</span>` : ''}`;
+      chip.innerHTML = `<span class="dot">P${p.number}</span>${avatarImg(p.name, 'chip-av')}<span class="name">${esc(p.name)}${p.id === state.playerId ? ' (you)' : ''}</span>${score ? `<span class="score">${score}</span>` : ''}`;
       return chip;
     }));
     const crowd = state.lobby.crowd.length;
@@ -857,6 +904,8 @@
     const r = p.result;
     if (!r) return;
     $('score-name').textContent = r.id === state.playerId ? 'You' : r.name;
+    $('score-av').innerHTML = avatarImg(r.name, 'hello');
+    $('score-av').style.setProperty('--pc', r.color);
     $('score-name').style.color = r.color;
     $('score-num').textContent = r.average === null ? '–' : r.average.toFixed(1);
     $('score-stars').innerHTML = starsText(r.average);
@@ -1169,7 +1218,7 @@
       step.className = 'step';
       step.style.setProperty('--pc', r.color);
       step.style.animationDelay = `${0.15 * (display.length - i)}s`;
-      step.innerHTML = `<svg class="avatar" viewBox="0 0 100 120" aria-hidden="true">${micSvg(r.color)}</svg>`
+      step.innerHTML = `<span class="avatar">${avatarImg(r.name, r.place === 1 ? 'hello' : '')}</span>`
         + `<span class="who">${esc(nameOf(r))}</span>`
         + `<div class="block" style="height:${HEIGHTS[r.place] || 60}px"><span class="place">${r.place}</span>`
         + `<span class="avg">${wb ? `${r.total} ★` : r.average === null ? 'no votes' : `${r.average.toFixed(1)} ★`}</span></div>`;
@@ -1353,14 +1402,16 @@
     updateRows(0);
     void barsEl.offsetWidth;
     stage.rows.forEach((row) => { row.style.transition = ''; });
-    $('mic-drop').style.display = 'none';
+    hideMicDrop();
+    stage.rapping = false;
     $('count').className = 'count';
     const isMe = solo || turn.rapperId === state.playerId;
     const micName = $('mic-name');
     micName.style.setProperty('--pc', turn.color);
-    micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
+    micName.innerHTML = `${avatarImg(turn.name)}<span><b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic</span>`;
     $('ready-kicker').textContent = 'Get ready';
-    $('ready-avatar').innerHTML = micSvg(turn.color);
+    $('ready-avatar').innerHTML = avatarImg(turn.name, 'hello');
+    $('ready-avatar').style.setProperty('--pc', turn.color);
     $('ready-name').textContent = turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
     $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
@@ -1392,14 +1443,16 @@
     });
     $('wb-lines').replaceChildren(...stage.lineEls);
     $('wb-beats').querySelectorAll('i').forEach((d) => d.classList.remove('lit', 'down'));
-    $('mic-drop').style.display = 'none';
+    hideMicDrop();
+    stage.rapping = false;
     $('count').className = 'count';
     const isMe = turn.rapperId === state.playerId;
     const micName = $('mic-name');
     micName.style.setProperty('--pc', turn.color);
-    micName.innerHTML = `<b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic`;
+    micName.innerHTML = `${avatarImg(turn.name)}<span><b>${esc(isMe ? `${turn.name} (You)` : turn.name)}</b> is on the mic</span>`;
     $('ready-kicker').textContent = `Round ${turn.wbRound} · ${turn.perf + 1} of ${turn.perfs}`;
-    $('ready-avatar').innerHTML = micSvg(turn.color);
+    $('ready-avatar').innerHTML = avatarImg(turn.name, 'hello');
+    $('ready-avatar').style.setProperty('--pc', turn.color);
     $('ready-name').textContent = turn.name;
     $('ready-name').style.setProperty('--pc', turn.color);
     $('ready-line').textContent = isMe ? "you're on the mic" : 'is on the mic';
@@ -1787,14 +1840,23 @@
 
     if (stage.wb) performanceFrame(p);
     else freestyleFrame(p, now);
+    // The rapper's avatar pops as the drums drop, and takes a bow at the end.
+    const rapping = p >= 0;
+    if (rapping !== stage.rapping) {
+      stage.rapping = rapping;
+      if (rapping && p < 1) replay($('mic-name').querySelector('.av'), 'hello');
+    }
     const done = p >= stage.rapBeats;
     if (done !== stage.ended) {
       stage.ended = done;
-      $('mic-drop').style.display = done ? 'flex' : 'none';
-      if (done && p < stage.rapBeats + 2) playClap();
+      if (done && p < stage.rapBeats + 2) {
+        replay($('mic-name').querySelector('.av'), 'bow');
+        showMicDrop();
+        playClap();
+      } else if (!done) hideMicDrop();
     }
     if (DEBUG) showDebugInfo(p);
-    if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + 1.5) {
+    if (stage.solo && !stage.soloDone && p >= TOTAL_BEATS + Engine.MIC_DROP_MS / 1000 / stage.beatSec) {
       stage.soloDone = true;
       $('solo-overlay').classList.add('show');
     }
@@ -1865,7 +1927,7 @@
   }
 
   // Debug aid: ?debug exposes the client state.
-  if (DEBUG) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx, trackBuffers, ttsLog, pickVoice, write };
+  if (DEBUG) window.__rapmatesDebug = { state, stage, net, beatPos, getAudioCtx, trackBuffers, ttsLog, pickVoice, write, showMicDrop };
 
   buildSlots();
   renderSlots();

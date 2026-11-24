@@ -20,6 +20,15 @@
     <p class="subtitle">Write bars or spit them in this rap battle for up to 8 players</p>
   </header>
 
+  <div class="mic-drop" id="mic-drop" aria-live="polite">
+    <div class="mic-rain" id="mic-rain" aria-hidden="true"></div>
+    <div class="mic-drop-card">
+      <span class="mic-drop-av" id="mic-drop-av" aria-hidden="true"></span>
+      <p class="mic-drop-text">Mic drop!</p>
+      <p class="mic-drop-name" id="mic-drop-name"></p>
+    </div>
+  </div>
+
   <div class="overlay" id="name-overlay">
     <form class="card name-card" id="name-form">
       <p class="kicker">Welcome to Rapmates</p>
@@ -71,6 +80,7 @@
 
     <p class="error" id="error-msg" role="alert"></p>
   </div>
+  <p class="credits" id="credits">Avatars: <a href="https://www.dicebear.com/styles/initial-face/" target="_blank" rel="noopener">Initial Face</a> by <a href="https://www.dicebear.com" target="_blank" rel="noopener">DiceBear</a>, <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener">CC0 1.0</a></p>
 
   <div id="game-view">
     <div class="hud">
@@ -123,14 +133,14 @@
         <div class="wb-lines" id="wb-lines" aria-live="polite"></div>
         <div class="wb-beats" id="wb-beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div class="count" id="count"></div>
-        <div class="mic-drop" id="mic-drop">Mic drop!</div>
+
       </div>
       <p class="game-hint" id="game-hint">Rap along to the beat. Land the word in the 4th box right when the ball hits it.</p>
 
       <div class="overlay" id="ready-overlay">
         <div class="card">
           <p class="kicker" id="ready-kicker">Get ready</p>
-          <svg class="ready-avatar" id="ready-avatar" viewBox="0 0 100 120" aria-hidden="true"></svg>
+          <span class="ready-avatar" id="ready-avatar" aria-hidden="true"></span>
           <p class="ready-name" id="ready-name"></p>
           <p class="big-title" id="ready-line">is on the mic</p>
           <span class="ready-beat" id="ready-beat"></span>
@@ -158,6 +168,7 @@
       <div class="overlay" id="score-overlay">
         <div class="card">
           <p class="kicker">The crowd says</p>
+          <span class="score-av" id="score-av" aria-hidden="true"></span>
           <p class="big-title" id="score-name"></p>
           <p class="score-num" id="score-num"></p>
           <p class="score-stars" id="score-stars"></p>

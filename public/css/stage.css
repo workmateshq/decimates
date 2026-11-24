@@ -22,13 +22,15 @@
 }
 .chip-p .dot { min-width: 24px; height: 22px; border-radius: 5px; background: var(--pc); display: grid; place-items: center; font-size: 11px; color: #111; padding: 0 3px; }
 .chip-p .score { color: var(--gold); }
+.chip-p .chip-av { width: 22px; height: 22px; border-width: 1.5px; box-shadow: none; }
 .hud-centre.many { gap: 5px; }
 .hud-centre.many .chip-p { padding: 3px 7px 3px 3px; font-size: 12px; }
 .hud-centre.many .chip-p .name { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
 .chip-p.on-mic { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 18%, #141414); }
 
 .mic-line { display: flex; align-items: baseline; justify-content: space-between; width: 100%; margin: 4px 0 8px; gap: 10px; }
-.mic-name { font-family: var(--street); font-size: clamp(18px, 2.6vw, 28px); line-height: 1; color: #6b6862; }
+.mic-name { font-family: var(--street); font-size: clamp(18px, 2.6vw, 28px); line-height: 1; color: #6b6862; display: flex; align-items: center; gap: 10px; }
+.mic-name .av { width: 1.6em; height: 1.6em; }
 .mic-name b { color: var(--gold); font-weight: 400; }
 .bar-count { font-family: var(--street); font-size: clamp(18px, 2.6vw, 28px); color: #6b6862; white-space: nowrap; }
 .bar-count b { color: var(--ink); font-weight: 400; }
@@ -79,11 +81,6 @@
 .count.go { color: var(--go-bright); text-shadow: 0 8px 0 #000, 0 0 60px rgba(139, 197, 64, 0.4); }
 .count.pop { animation: count-pop 0.5s ease-out forwards; }
 @keyframes count-pop { from { opacity: 1; transform: translate(-50%, -50%) scale(1.4); } 70% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -50%) scale(0.92); } }
-.mic-drop {
-  position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 5;
-  font-family: var(--street); font-size: clamp(50px, 10vw, 120px); color: var(--gold); text-shadow: 0 6px 0 #000;
-  animation: pop-in 0.4s ease-out;
-}
 #debug-info {
   position: fixed; left: 8px; bottom: 8px; z-index: 60; margin: 0; padding: 6px 10px; max-width: calc(100vw / 0.9 - 16px);
   font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--go-bright); background: rgba(0, 0, 0, 0.8);

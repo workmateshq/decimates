@@ -40,6 +40,7 @@
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
   const WB_GAP_MS = 3000; // after a performance: the golf clap while the track fades
+  const MIC_DROP_MS = 3000; // Freestyle: the mic-drop takeover after 16 bars, before the vote
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer
   const STANDINGS_MS = 8000; // the scoreboard between rounds
   const LINE_MAX = 80; // characters per line
@@ -356,7 +357,7 @@
       if (!this.started) return;
       const now = this.now();
       if (this.mode === 'writebars') return this.writeBarsTick(now);
-      if (this.phase === 'turn' && now >= this.turn.endAt) this.openVote();
+      if (this.phase === 'turn' && now >= this.turn.endAt + MIC_DROP_MS) this.openVote();
       else if (this.phase === 'vote' && now >= this.voteEndsAt) this.closeVote();
       else if (this.phase === 'score' && now >= this.scoreEndsAt) this.nextTurn();
     }
@@ -653,6 +654,7 @@
     WB_RAP_BARS,
     WB_BPM,
     WB_GAP_MS,
+    MIC_DROP_MS,
     WB_VOTE_SECONDS,
     STANDINGS_MS,
     LINE_MAX,
