@@ -19,7 +19,7 @@
   const WB_LINES = Engine.WB_LINES;
   const LINE_BEATS = Engine.WB_BARS_PER_LINE * BPB; // a Write Bars line lasts 2 bars
   const MODE_LABELS = { writebars: 'Write bars', freestyle: 'Freestyle' };
-  // ?debug&write=10: a 10-second write timer for testing (the default is 60).
+  // ?debug&write=10: a 10-second write timer for testing (the default is 90).
   const DEBUG_WRITE = DEBUG && PARAMS.has('write') ? Number(PARAMS.get('write')) || undefined : undefined;
   // ?debug&write=N shortens the write timer; ?debug&nointro skips the intro screen.
   const startOptions = () => {
@@ -132,9 +132,12 @@
 
   const sfx = {
     // Woodblock count-in click; the GO beat is higher.
+    // Returns its oscillators, so ticks scheduled ahead can be cancelled.
     count(t, go) {
-      tone(t, 'sine', go ? 1760 : 1175, go ? 1760 : 1175, 0.08, 0.5, 0.001);
-      tone(t, 'triangle', go ? 880 : 587, go ? 880 : 587, 0.05, 0.25, 0.001);
+      return [
+        tone(t, 'sine', go ? 1760 : 1175, go ? 1760 : 1175, 0.08, 0.5, 0.001),
+        tone(t, 'triangle', go ? 880 : 587, go ? 880 : 587, 0.05, 0.25, 0.001),
+      ];
     },
     // Write Bars panic ticker: a clock tick, louder and higher in the last 3 seconds.
     tick(t, urgent) {
@@ -143,7 +146,7 @@
     },
     // Debug metronome: accent on bar downbeats.
     click(t, accent) {
-      tone(t, 'square', accent ? 2000 : 1300, accent ? 2000 : 1300, 0.03, accent ? 0.35 : 0.2, 0.001);
+      return tone(t, 'square', accent ? 2000 : 1300, accent ? 2000 : 1300, 0.03, accent ? 0.35 : 0.2, 0.001);
     },
     // Menu sounds: a soft tick on hover, a short two-layer pop on press.
     uiHover() {
@@ -1455,7 +1458,9 @@
     return Engine.ADLIBS[soloAdlibCount++ % Engine.ADLIBS.length];
   }
 
+  let soloStarts = 0; // a newer start (or going home) cancels one still waiting for the beat to load
   async function startSolo() {
+    const mine = ++soloStarts;
     getAudioCtx();
     loadTracks();
     state.solo = state.solo || { name: savedName() || 'Rapper', lastTrackId: null };
@@ -1464,7 +1469,7 @@
     // The first time, give the track a moment to finish decoding so it starts from the top.
     const pending = trackBuffers.get(track.id);
     if (pending && !pending.buffer) await Promise.race([pending.catch(() => {}), new Promise((r) => setTimeout(r, 4000))]);
-    if (!state.solo) return;
+    if (!state.solo || mine !== soloStarts) return;
     const startAt = localNow() + SOLO_LEAD_MS;
     const turn = {
       rapperId: 'solo', name: state.solo.name, color: '#F6C445', startAt, endAt: startAt + Engine.turnLengthMs(track),
@@ -1476,8 +1481,11 @@
     hideOverlays();
     setupTurn(turn, { solo: true });
   }
+  // Home from solo practice: the go ends there and then (beat, count-in, ball, voice, overlays).
   function exitSolo() {
+    soloStarts++;
     state.solo = null;
+    stopStage();
     showLobby();
     $('setup-view').style.display = 'block';
   }
@@ -1854,7 +1862,7 @@
     // Count-in ticks over the last two intro bars.
     for (let i = 0; i < COUNT_IN; i++) {
       const t = start + (stage.introBeats - COUNT_IN + i) * stage.beatSec;
-      if (t > a.currentTime) sfx.count(t, i === COUNT_IN - 1);
+      if (t > a.currentTime) audio.clicks.push(...sfx.count(t, i === COUNT_IN - 1));
     }
     // The ad-lib on some turns: its hit lands on the downbeat of rap bar 13 in Freestyle, or on the last beat
     // of bar 6 (just before the last line) in Write Bars.
@@ -1874,7 +1882,7 @@
       const beats = (track.introBars + stage.rapBars) * BPB;
       for (let k = 0; k < beats; k++) {
         const t = start + k * stage.beatSec;
-        if (t > a.currentTime) sfx.click(t, k % BPB === 0);
+        if (t > a.currentTime) audio.clicks.push(sfx.click(t, k % BPB === 0));
       }
     }
     scheduleSpeech();

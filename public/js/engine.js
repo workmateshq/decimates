@@ -27,7 +27,7 @@
   // Write Bars.
   const MODES = ['writebars', 'freestyle'];
   const DEFAULT_MODE = 'writebars';
-  const WRITE_SECONDS = 60; // to write 4 lines
+  const WRITE_SECONDS = 90; // to write 4 lines
   const WRITE_GRACE_MS = 1000; // drafts sent as a player's clock hits 0 still count
   const WB_ROUNDS = 3;
   const WB_LINES = 4;

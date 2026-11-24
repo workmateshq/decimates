@@ -79,7 +79,7 @@ test('Write Bars is the default mode; the host picks the mode in the lobby and e
   assert.equal(room.input('a', { type: 'mode', mode: 'writebars' }), false, 'not mid-game');
 });
 
-test('the write phase: 60 seconds on the host clock, each rapper gets 2 unique pairs', () => {
+test('the write phase: 90 seconds on the host clock, each rapper gets 2 unique pairs', () => {
   const ctx = writeBarsRoom(4, 1);
   const { room, last } = ctx;
   assert.equal(room.phase, 'write');
@@ -290,11 +290,12 @@ test('everyone leaving ends the game; a lone rapper plays on without votes', () 
   assert.equal(ctx.room.started, false);
 });
 
-test('a shorter write timer for testing is clamped to 5-60 seconds', () => {
+test('a shorter write timer for testing is clamped to 5-90 seconds', () => {
   const ctx = writeBarsRoom(1, 0, { writeSeconds: 10 });
   assert.equal(ctx.room.wb.writeEndsAt - ctx.now(), 10000);
   assert.equal(writeBarsRoom(1, 0, { writeSeconds: 1 }).room.wb.writeMs, 5000);
-  assert.equal(writeBarsRoom(1, 0, { writeSeconds: 600 }).room.wb.writeMs, 60000);
+  assert.equal(writeBarsRoom(1, 0, { writeSeconds: 600 }).room.wb.writeMs, 90000);
+  assert.equal(WRITE_SECONDS, 90);
 });
 
 test('the robot MC speaks in the voice the rapper picked', () => {
