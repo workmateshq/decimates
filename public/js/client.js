@@ -302,6 +302,8 @@
   const adlibBuffers = {};
   // Where each ad-lib's hit is in its file, so it can land on the beat.
   const ADLIB_HIT_SEC = { faaah: 0.2, damn: 0.03 };
+  // How loud each ad-lib plays (1 = as recorded).
+  const ADLIB_LEVEL = { faaah: 0.4, damn: 1 };
   let clapLoading = false;
   const loadSample = (a, url) => fetch(url)
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
@@ -1908,7 +1910,9 @@
       if (t > a.currentTime) {
         const src = a.createBufferSource();
         src.buffer = adlibBuffers[adlib];
-        src.connect(sfxGain);
+        const level = a.createGain();
+        level.gain.value = ADLIB_LEVEL[adlib] ?? 1;
+        src.connect(level).connect(sfxGain);
         src.start(t);
         audio.clicks.push(src);
       }
