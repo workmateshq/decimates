@@ -36,6 +36,7 @@
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
   // Who performs Write Bars lines: the rapper live, or the robot MC with a male or female voice.
   const VOICES = ['self', 'male', 'female'];
+  const ROUND_ENDS = 3; // sfx/round-end-01.mp3 .. -03.mp3
   const ADLIBS = ['faaah', 'damn']; // sfx/<name>.mp3, alternated
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
@@ -126,6 +127,7 @@
       this.lastTrackId = null; // never the same track twice in a row
       this.adlibGap = 0; // turns since the last ad-lib
       this.adlibCount = 0; // ad-libs so far, to alternate them
+      this.roundEndCount = 0; // turns so far, to cycle the round-end voiceovers
       this.started = false;
       this.loop = null;
       this.round = 0;
@@ -350,7 +352,7 @@
       this.turnIndex = index;
       const track = Tracks.pickTrack(this.lastTrackId, this.random);
       this.lastTrackId = track.id;
-      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(track), pairs, trackId: track.id, bpm: track.bpm, adlib: this.nextAdlib() };
+      this.turn = { rapperId: this.order[index], startAt, endAt: startAt + turnLengthMs(track), pairs, trackId: track.id, bpm: track.bpm, adlib: this.nextAdlib(), roundEnd: this.nextRoundEnd() };
       this.votes = new Map();
       this.phase = 'turn';
       if (announce) this.broadcast('phase', this.phasePayload());
@@ -559,7 +561,7 @@
         rapperId: id, startAt, endAt: startAt + turnLengthMs(track, WB_RAP_BARS), trackId: track.id, bpm: track.bpm,
         mode: 'writebars', rapBars: WB_RAP_BARS, fadeAfterBars: track.introBars + WB_RAP_BARS,
         lines: entry.lines.slice(), pairs: entry.pairs.map((pair) => pair.slice()), voice: entry.voice,
-        voiceGender: entry.voice === 'female' ? 'female' : 'male', adlib: this.nextAdlib(),
+        voiceGender: entry.voice === 'female' ? 'female' : 'male', adlib: this.nextAdlib(), roundEnd: this.nextRoundEnd(),
         voiceAccent: VOICE_ACCENTS[Math.floor(this.random() * VOICE_ACCENTS.length)], perf: index, perfs: wb.queue.length, wbRound: wb.round,
       };
       this.phase = 'turn';
@@ -684,6 +686,11 @@
       }
     }
 
+    // The voiceover after each turn (sfx/round-end-0N.mp3), cycling 1, 2, 3, so everyone hears the same one.
+    nextRoundEnd() {
+      return (this.roundEndCount++ % ROUND_ENDS) + 1;
+    }
+
     // About every 3rd turn gets an ad-lib (never two turns running, 50/50 on the 3rd, always by the 4th),
     // alternating "faaah" and "damn". Returns its name, or null for none.
     nextAdlib() {
@@ -704,6 +711,7 @@
     GameRoom,
     VOICE_ACCENTS,
     ADLIBS,
+    ROUND_ENDS,
     VOICES,
     generateRoomCode,
     standingsOf,

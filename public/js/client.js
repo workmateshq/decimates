@@ -296,7 +296,8 @@
   }
   // Sampled sound effects: the golf clap that marks the end of a round, and the "faaah" ad-lib.
   let clapBuffer = null;
-  let roundEndBuffer = null;
+  const roundEndBuffers = {}; // 1..ROUND_ENDS -> AudioBuffer
+  let endSounds = []; // the clap and voiceover still ringing after a turn (stopped when leaving the game)
   const ROUND_END_DELAY = 2.5; // seconds after the golf clap starts
   const adlibBuffers = {};
   // Where each ad-lib's hit is in its file, so it can land on the beat.
@@ -310,22 +311,29 @@
     if (!a || clapLoading) return;
     clapLoading = true;
     loadSample(a, 'sfx/golf-clap.mp3').then((b) => { clapBuffer = b; }, (err) => { clapLoading = false; console.warn("Couldn't load the golf clap.", err); });
-    loadSample(a, 'sfx/round-end.mp3').then((b) => { roundEndBuffer = b; }, (err) => console.warn("Couldn't load the round-end sting.", err));
+    for (let n = 1; n <= Engine.ROUND_ENDS; n++) {
+      loadSample(a, `sfx/round-end-0${n}.mp3`).then((b) => { roundEndBuffers[n] = b; }, (err) => console.warn(`Couldn't load round-end-0${n}.`, err));
+    }
     ['sfx/intro-beat.mp3', 'sfx/intro-write-bars.mp3', 'sfx/intro-freestyle.mp3'].forEach((url) => introSample(url).catch(() => {}));
     Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
-  // The golf clap when a rapper finishes, then the round-end voiceover a couple of seconds later (the clap dips under it). Both are
-  // tied to this turn's audio, so they stop if the turn does (e.g. going home).
+  // The golf clap when a rapper finishes, then the round-end voiceover a couple of seconds later (the clap dips
+  // under it). The host picks which voiceover (turn.roundEnd, cycling 1-3) so the whole room hears the same one.
+  // They ring on into the next turn's intro, and stop when leaving the game (e.g. going home).
   function playClap() {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
+    const n = stage.turn && stage.turn.roundEnd;
+    const roundEndBuffer = roundEndBuffers[n] || null;
+    endSounds = endSounds.filter((s) => s.endsAt > t);
     const play = (buffer, at, dest) => {
       if (!buffer) return;
       const src = ac.createBufferSource();
       src.buffer = buffer;
       src.connect(dest);
       src.start(at);
-      if (stage.audio) stage.audio.clicks.push(src);
+      src.endsAt = at + buffer.duration;
+      endSounds.push(src);
     };
     // The clap dips under the voiceover when it comes in.
     const clapGain = ac.createGain();
@@ -436,6 +444,7 @@
 
   function showLobby() {
     stopStage();
+    stopEndSounds();
     hideWrite();
     $('game-view').style.display = 'none';
     $('lobby-card').style.display = 'block';
@@ -1478,6 +1487,7 @@
     return Engine.ADLIBS[soloAdlibCount++ % Engine.ADLIBS.length];
   }
 
+  let soloRoundEnds = 0; // cycles the round-end voiceovers in solo
   let soloStarts = 0; // a newer start (or going home) cancels one still waiting for the beat to load
   async function startSolo() {
     const mine = ++soloStarts;
@@ -1493,7 +1503,7 @@
     const startAt = localNow() + SOLO_LEAD_MS;
     const turn = {
       rapperId: 'solo', name: state.solo.name, color: '#F6C445', startAt, endAt: startAt + Engine.turnLengthMs(track),
-      pairs: Words.drawPairs(), trackId: track.id, bpm: track.bpm, adlib: soloAdlib(),
+      pairs: Words.drawPairs(), trackId: track.id, bpm: track.bpm, adlib: soloAdlib(), roundEnd: (soloRoundEnds++ % Engine.ROUND_ENDS) + 1,
     };
     showError('');
     enterGame();
@@ -1797,6 +1807,11 @@
     stage.ttsTimers = [];
     if (stage.wb && window.speechSynthesis) window.speechSynthesis.cancel();
     duck(false);
+  }
+
+  function stopEndSounds() {
+    endSounds.forEach((s) => { try { s.stop(); } catch { /* done */ } });
+    endSounds = [];
   }
 
   function stopStage() {
