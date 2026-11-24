@@ -92,4 +92,16 @@
   75% { transform: translateY(6px) scale(0.97) rotate(-1deg); }
   100% { transform: none; }
 }
-@media (prefers-reduced-motion: reduce) { .mic-drop-text, .mic-drop-name { animation: none; } }
+.mic-drop-words { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: md-jump 0.7s cubic-bezier(.3, 1.7, .5, 1) 0.7s both; }
+.mic-drop-words:empty { display: none; }
+.mic-drop-words .badge {
+  display: inline-block; padding: 8px 18px; border-radius: 999px; font-family: var(--street); font-size: clamp(22px, 3.4vw, 34px);
+  color: #111; background: var(--go-bright); box-shadow: 0 4px 0 #000, 0 0 30px rgba(139, 197, 64, 0.5); animation: badge-pulse 0.9s ease-in-out 1.4s infinite;
+}
+@keyframes badge-pulse { 50% { transform: scale(1.07); } }
+.mic-drop-words .tally { font-family: var(--street); font-size: clamp(20px, 3vw, 28px); color: var(--ink); text-shadow: 0 3px 0 #000; }
+.mic-drop-words .ticks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.mic-drop-words .ticks span { padding: 4px 10px; border-radius: 6px; font-size: 15px; font-weight: 800; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--line-2); }
+.mic-drop-words .ticks .hit { color: var(--go-bright); border-color: color-mix(in srgb, var(--go-bright) 50%, transparent); }
+.mic-drop-words .ticks .miss { color: #9a948a; text-decoration: line-through; }
+@media (prefers-reduced-motion: reduce) { .mic-drop-text, .mic-drop-name, .mic-drop-words, .mic-drop-words .badge { animation: none; } }

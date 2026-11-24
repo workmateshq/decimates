@@ -725,6 +725,21 @@
     $('mic-drop-av').innerHTML = avatarImg(turn.name, 'hello');
     $('mic-drop-av').style.setProperty('--pc', turn.color);
     $('mic-drop-name').textContent = turn.rapperId === state.playerId || stage.solo ? 'You killed it!' : turn.name;
+    // Write Bars: call out whether they used all 4 prompt words.
+    const callout = $('mic-drop-words');
+    callout.innerHTML = '';
+    callout.className = 'mic-drop-words';
+    if (stage.wb && Array.isArray(turn.lines) && Array.isArray(turn.pairs)) {
+      const used = wordsUsed(turn.lines, turn.pairs.flat());
+      const hits = used.filter((u) => u.used).length;
+      if (hits === used.length) {
+        callout.classList.add('all');
+        callout.innerHTML = `<span class="badge">All ${used.length} rhymes landed!</span>`;
+      } else {
+        callout.innerHTML = `<span class="tally">${hits} of ${used.length} prompt words</span>`
+          + `<span class="ticks">${used.map((u) => `<span class="${u.used ? 'hit' : 'miss'}">${u.used ? '✓' : '✗'} ${esc(u.word)}</span>`).join('')}</span>`;
+      }
+    }
     box.classList.remove('show');
     void box.offsetWidth;
     box.classList.add('show');
@@ -930,6 +945,15 @@
       .map((w) => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'));
     const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${alts.join('|')})(?=$|[^\\p{L}\\p{N}])`, 'giu');
     return esc(text).replace(re, (m, pre, w) => `${pre}<mark>${w}</mark>`);
+  }
+
+  // Which of the prompt words a rapper used (anywhere in their lines, whole words or plurals, any case).
+  function wordsUsed(lines, words) {
+    const text = lines.join(' \n ');
+    return words.map((w) => {
+      const pat = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+      return { word: w, used: new RegExp(`(^|[^\\p{L}\\p{N}])${pat}(?:'?s|es)?(?=$|[^\\p{L}\\p{N}])`, 'iu').test(text) };
+    });
   }
 
   function writersOf(p) {
