@@ -322,7 +322,7 @@ test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always
   }
 });
 
-test('Freestyle: a 5-second mic drop after the 16 bars, then the vote', () => {
+test('Freestyle: a 7-second mic drop after the 16 bars, then the vote', () => {
   const ctx = startedRoom(2);
   ctx.advance(ctx.room.turn.endAt - ctx.now());
   assert.equal(ctx.room.phase, 'turn', 'the mic drop plays first');
