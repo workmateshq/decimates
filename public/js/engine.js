@@ -42,7 +42,8 @@
   const MIC_DROP_MS = 7000; // the mic-drop takeover after a rapper finishes, before the vote / next rapper
   const WB_GAP_MS = MIC_DROP_MS; // Write Bars: after a performance (golf clap and mic drop while the track fades)
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer
-  const STANDINGS_MS = 8000; // the scoreboard between rounds
+  const STANDINGS_MS = 8000; // the final scoreboard, before the podium
+  const NEXT_ROUND_SECONDS = 30; // between rounds: rappers press "Play next round"; whoever has by then plays on
   const LINE_MAX = 80; // characters per line
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Moody accents; green is kept for the ball and finished beats.
@@ -270,6 +271,7 @@
       if (msg.type === 'draft' || msg.type === 'done') return this.write(id, msg.lines, msg.voice, msg.type === 'done');
       if (msg.type === 'edit') return this.unlockWrite(id);
       if (msg.type === 'votes') return this.rateAll(id, msg.stars, msg.round);
+      if (msg.type === 'nextRound') return this.readyNextRound(id, msg.round);
       return false;
     }
 
@@ -397,7 +399,12 @@
       const wb = this.mode === 'writebars' ? this.wb : null;
       if (wb) Object.assign(p, { wbRound: wb.round, rounds: wb.rounds, totals: [...wb.totals.values()].map((t) => ({ ...t })) });
       if (wb && this.phase === 'write') Object.assign(p, { writeEndsAt: wb.writeEndsAt, writeMs: wb.writeMs, writers: this.serializeWriters() });
-      if (wb && this.phase === 'standings') Object.assign(p, { standingsEndsAt: wb.standingsEndsAt, roundResults: wb.roundResults.map((r) => ({ ...r })) });
+      if (wb && this.phase === 'standings') {
+        Object.assign(p, {
+          standingsEndsAt: wb.standingsEndsAt, roundResults: wb.roundResults.map((r) => ({ ...r })),
+          nextRappers: this.nextRoundRappers(), nextReady: [...(wb.nextReady || [])],
+        });
+      }
       if (wb && this.phase === 'vote') {
         p.performances = wb.performers.filter((id) => this.members.has(id)).map((id) => {
           const m = this.members.get(id);
@@ -586,8 +593,36 @@
         return { id, name: m.name, number: m.number, color: m.color, stars, votes: got.length, total };
       }).sort((a, b) => b.total - a.total || a.number - b.number);
       this.phase = 'standings';
-      wb.standingsEndsAt = this.now() + STANDINGS_MS;
+      // Between rounds the scoreboard waits for the rappers (up to NEXT_ROUND_SECONDS); after the last it's brief.
+      wb.nextReady = new Set();
+      wb.standingsEndsAt = this.now() + (wb.round >= wb.rounds ? STANDINGS_MS : NEXT_ROUND_SECONDS * 1000);
       this.broadcast('phase', this.phasePayload());
+    }
+
+    // Rappers still in this game who can opt in to the next round.
+    nextRoundRappers() {
+      return this.order.filter((id) => this.members.has(id));
+    }
+
+    // A rapper pressed "Play next round". Everyone in: start straight away.
+    readyNextRound(id, round) {
+      const wb = this.wb;
+      if (this.mode !== 'writebars' || this.phase !== 'standings' || !wb || wb.round >= wb.rounds) return false;
+      if (round !== undefined && round !== wb.round) return false;
+      if (!this.nextRoundRappers().includes(id) || wb.nextReady.has(id)) return false;
+      wb.nextReady.add(id);
+      if (this.nextRoundRappers().every((r) => wb.nextReady.has(r))) this.startNextRound();
+      else this.broadcast('phase', this.phasePayload());
+      return true;
+    }
+
+    // Whoever opted in plays on (the rest sit out and watch); nobody did: the game ends.
+    startNextRound() {
+      const wb = this.wb;
+      const going = this.nextRoundRappers().filter((id) => wb.nextReady.has(id));
+      if (!going.length) return this.endGame();
+      this.order = going;
+      this.beginWrite();
     }
 
     writeBarsTick(now) {
@@ -597,7 +632,7 @@
       else if (this.phase === 'vote' && now >= this.voteEndsAt) this.closeRoundVote();
       else if (this.phase === 'standings' && now >= wb.standingsEndsAt) {
         if (wb.round >= wb.rounds) this.endGame();
-        else this.beginWrite();
+        else this.startNextRound();
       }
     }
 
@@ -611,6 +646,10 @@
       } else if (this.phase === 'vote') {
         if (this.writeBarsVoters().every((v) => this.hasRatedAll(v))) this.closeRoundVote();
         else this.broadcast('votes', this.serializeVotes());
+      } else if (this.phase === 'standings' && this.wb.round < this.wb.rounds) {
+        const left = this.nextRoundRappers();
+        if (left.length && left.every((r) => this.wb.nextReady.has(r))) this.startNextRound();
+        else this.broadcast('phase', this.phasePayload());
       }
     }
 
@@ -657,6 +696,7 @@
     MIC_DROP_MS,
     WB_VOTE_SECONDS,
     STANDINGS_MS,
+    NEXT_ROUND_SECONDS,
     LINE_MAX,
     TICK_RATE,
     MAX_PLAYERS,

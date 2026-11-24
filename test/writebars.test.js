@@ -4,7 +4,7 @@ const Engine = require('../public/js/engine.js');
 const Tracks = require('../public/js/tracks.js');
 
 const {
-  GameRoom, DEFAULT_MODE, WRITE_SECONDS, WRITE_GRACE_MS, WB_ROUNDS, WB_RAP_BARS, WB_GAP_MS, WB_VOTE_SECONDS, STANDINGS_MS, LINE_MAX, LEAD_MS,
+  GameRoom, DEFAULT_MODE, WRITE_SECONDS, WRITE_GRACE_MS, WB_ROUNDS, WB_RAP_BARS, WB_GAP_MS, WB_VOTE_SECONDS, STANDINGS_MS, NEXT_ROUND_SECONDS, LINE_MAX, LEAD_MS,
   sanitizeLine, sanitizeLines, lineBar, lineStartMs, turnLengthMs, totalsStandingsOf,
 } = Engine;
 
@@ -42,6 +42,13 @@ function writeBarsRoom(players = 2, crowd = 0, options, seed) {
   for (let i = 1; i <= players + crowd; i++) ctx.room.join(`p${i}`);
   ctx.room.start('p1', options);
   return ctx;
+}
+
+// After a round's scoreboard: every rapper presses "Play next round" (or, after the last round, the podium).
+function nextRound(ctx) {
+  const { room } = ctx;
+  if (room.wb.round >= room.wb.rounds) return ctx.advance(STANDINGS_MS);
+  room.nextRoundRappers().forEach((id) => room.input(id, { type: 'nextRound', round: room.wb.round }));
 }
 
 const LINES = ['I grind every day', 'it stays on my mind', 'lines one two', 'and the end'];
@@ -100,7 +107,7 @@ test('pairs never repeat across the 3 rounds', () => {
     allDone(ctx, ['p1', 'p2', 'p3', 'p4']);
     runBattle(ctx);
     rateAll(ctx, ['p1', 'p2', 'p3', 'p4']);
-    ctx.advance(STANDINGS_MS);
+    nextRound(ctx);
   }
   assert.equal(seen.length, 24);
   assert.equal(new Set(seen).size, 24);
@@ -176,7 +183,7 @@ test('performances go in seat order on 90 BPM tracks (never the same twice runni
       ctx.advance(ctx.room.turn.endAt + WB_GAP_MS - ctx.now());
     }
     rateAll(ctx, ['p1', 'p2', 'p3', 'p4']);
-    ctx.advance(STANDINGS_MS);
+    nextRound(ctx);
   }
   assert.equal(turns.length, 12);
   assert.deepEqual(turns.slice(0, 4).map((t) => t.rapperId), ['p1', 'p2', 'p3', 'p4']);
@@ -211,7 +218,7 @@ test('voting: rate everyone else at once; stars add up across 3 rounds to a fina
     assert.equal(s.wbRound, r);
     // p1 gets 5 from 3 voters (p2, p3, p4) = 15 a round; p2 3x3 = 9; p3 1x3 = 3.
     assert.deepEqual(s.roundResults.map((x) => [x.id, x.stars, x.votes, x.total]), [['p1', 15, 3, 15 * r], ['p2', 9, 3, 9 * r], ['p3', 3, 3, 3 * r]]);
-    ctx.advance(STANDINGS_MS);
+    nextRound(ctx);
   }
   assert.equal(room.phase, 'results');
   const over = last('gameOver').data;
@@ -325,4 +332,56 @@ test('a full room of 8: everyone gets their own pairs and performs in seat order
     ctx.advance(ctx.room.turn.endAt + WB_GAP_MS - ctx.now());
   }
   assert.deepEqual(order, ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']);
+});
+
+test('between rounds: wait up to 30 s for "Play next round"; everyone in starts it straight away', () => {
+  const ctx = writeBarsRoom(3);
+  const { room } = ctx;
+  allDone(ctx, ['p1', 'p2', 'p3']);
+  runBattle(ctx);
+  rateAll(ctx, ['p1', 'p2', 'p3']);
+  assert.equal(room.phase, 'standings');
+  const p = ctx.last('phase').data;
+  assert.equal(p.standingsEndsAt, ctx.now() + NEXT_ROUND_SECONDS * 1000);
+  assert.deepEqual(p.nextRappers, ['p1', 'p2', 'p3']);
+  ctx.advance(STANDINGS_MS + 1000);
+  assert.equal(room.phase, 'standings', 'no auto-advance after 8 s any more');
+  assert.ok(room.input('p1', { type: 'nextRound', round: 1 }));
+  assert.equal(room.input('p1', { type: 'nextRound', round: 1 }), false, 'once only');
+  assert.deepEqual(ctx.last('phase').data.nextReady, ['p1']);
+  room.input('p2', { type: 'nextRound', round: 1 });
+  assert.equal(room.phase, 'standings');
+  room.input('p3', { type: 'nextRound', round: 1 });
+  assert.equal(room.phase, 'write', 'all in: round 2 starts');
+  assert.equal(room.wb.round, 2);
+});
+
+test('between rounds: when the 30 s run out, only those who opted in play on; nobody: the game ends', () => {
+  const ctx = writeBarsRoom(3);
+  const { room } = ctx;
+  allDone(ctx, ['p1', 'p2', 'p3']);
+  runBattle(ctx);
+  rateAll(ctx, ['p1', 'p2', 'p3']);
+  room.input('p1', { type: 'nextRound', round: 1 });
+  room.input('p3', { type: 'nextRound', round: 1 });
+  ctx.advance(NEXT_ROUND_SECONDS * 1000);
+  assert.equal(room.phase, 'write');
+  assert.deepEqual([...room.wb.entries.keys()], ['p1', 'p3'], 'p2 sits out');
+  allDone(ctx, ['p1', 'p3']);
+  runBattle(ctx);
+  rateAll(ctx, ['p1', 'p2', 'p3']);
+  assert.equal(room.phase, 'standings');
+  ctx.advance(NEXT_ROUND_SECONDS * 1000);
+  assert.equal(room.phase, 'results', 'nobody opted in: straight to the podium');
+});
+
+test('between rounds: if the only rapper not ready leaves, the next round starts', () => {
+  const ctx = writeBarsRoom(2);
+  const { room } = ctx;
+  allDone(ctx, ['p1', 'p2']);
+  runBattle(ctx);
+  rateAll(ctx, ['p1', 'p2']);
+  room.input('p1', { type: 'nextRound', round: 1 });
+  room.leave('p2');
+  assert.equal(room.phase, 'write');
 });

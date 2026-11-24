@@ -105,3 +105,9 @@
 .mic-drop-words .ticks .hit { color: var(--go-bright); border-color: color-mix(in srgb, var(--go-bright) 50%, transparent); }
 .mic-drop-words .ticks .miss { color: #9a948a; text-decoration: line-through; }
 @media (prefers-reduced-motion: reduce) { .mic-drop-text, .mic-drop-name, .mic-drop-words, .mic-drop-words .badge { animation: none; } }
+
+/* Between rounds: opt in to the next one. */
+.next-round { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.next-round[hidden] { display: none; }
+.next-round-status { color: var(--muted); font-size: 14px; }
+.next-round-status b { color: var(--gold); font-variant-numeric: tabular-nums; }

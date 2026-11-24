@@ -85,6 +85,7 @@ header { text-align: center; margin-bottom: 18px; display: flex; flex-direction:
 .btn.ghost { --c: transparent; --lip: transparent; --fg: var(--muted); border-color: var(--line); }
 .btn.ghost:hover { --fg: var(--ink); border-color: var(--line-2); }
 .btn.small { width: auto; display: inline-block; padding: 10px 14px; font-size: 13px; margin: 0; }
+.btn[hidden] { display: none; }
 .btn:disabled { --c: #262626; --lip: #000; --fg: #6b6b6b; cursor: not-allowed; filter: none; }
 input[type="text"] {
   width: 100%; padding: 13px; font-family: var(--ui); font-weight: 900; font-size: 20px; text-align: center;

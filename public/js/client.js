@@ -1202,6 +1202,7 @@
       + `<span class="gain">+${r.stars} ★</span><span class="tot">${r.total} ★</span></div>`).join('')
       || '<p class="hint">Nobody performed this round.</p>';
     $('standings-next').textContent = last ? 'And the winner is...' : `Round ${p.wbRound + 1} is next: fresh rhymes, the clock starts again.`;
+    renderNextRound(p);
     $('standings-overlay').classList.add('show');
     const key = `${state.game.round}:st${p.wbRound}`;
     if (state.standingsShown !== key) {
@@ -1210,6 +1211,42 @@
       playSfx('cheer', best || 2);
     }
   }
+
+  // Between rounds: "Play next round", who's in, and the 30-second countdown (whoever's in by 0 plays on).
+  let nextRoundTimer = null;
+  function renderNextRound(p) {
+    const box = $('next-round');
+    const between = p && p.phase === 'standings' && p.wbRound < p.rounds && Array.isArray(p.nextRappers);
+    box.hidden = !between;
+    clearInterval(nextRoundTimer);
+    nextRoundTimer = null;
+    if (!between) return;
+    const amRapper = p.nextRappers.includes(state.playerId);
+    const ready = p.nextReady || [];
+    const imIn = ready.includes(state.playerId);
+    const btn = $('next-round-btn');
+    btn.hidden = !amRapper;
+    btn.disabled = imIn;
+    btn.textContent = imIn ? "You're in ✓" : 'Play next round';
+    const tick = () => {
+      if (state.phase !== p) return clearInterval(nextRoundTimer);
+      const secs = Math.max(0, Math.ceil((p.standingsEndsAt - net.hostNow()) / 1000));
+      const waiting = p.nextRappers.length - ready.length;
+      const who = `${ready.length} of ${p.nextRappers.length} in`;
+      $('next-round-status').innerHTML = amRapper && !imIn
+        ? `${who} · <b>${secs}s</b> to opt in, or you sit out the rest`
+        : `${who} · starts in <b>${secs}s</b>${waiting ? ` or when the other ${waiting === 1 ? 'rapper is' : `${waiting} rappers are`} in` : ''}`;
+    };
+    tick();
+    nextRoundTimer = setInterval(tick, 250);
+  }
+  $('next-round-btn').addEventListener('click', () => {
+    const p = state.phase;
+    if (!p || p.phase !== 'standings') return;
+    $('next-round-btn').disabled = true;
+    net.emit('input', { type: 'nextRound', round: p.wbRound });
+    playSfx('submit');
+  });
 
   // ---------- Results ----------
 
