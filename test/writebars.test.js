@@ -31,6 +31,7 @@ function makeRoom(seed = 7, maxPlayers) {
     random: seeded(seed),
     now: () => clock,
     maxPlayers,
+    introMs: 0, // no intro screen in these tests (it has its own)
   });
   const advance = (ms) => { clock += ms; if (tickFn) tickFn(); };
   const last = (ev, to) => [...sent].reverse().find((m) => m.ev === ev && (!to || m.to === to));

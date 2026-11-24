@@ -21,7 +21,13 @@
   const MODE_LABELS = { writebars: 'Write bars', freestyle: 'Freestyle' };
   // ?debug&write=10: a 10-second write timer for testing (the default is 60).
   const DEBUG_WRITE = DEBUG && PARAMS.has('write') ? Number(PARAMS.get('write')) || undefined : undefined;
-  const startOptions = () => (DEBUG_WRITE ? { writeSeconds: DEBUG_WRITE } : undefined);
+  // ?debug&write=N shortens the write timer; ?debug&nointro skips the intro screen.
+  const startOptions = () => {
+    const o = {};
+    if (DEBUG_WRITE) o.writeSeconds = DEBUG_WRITE;
+    if (DEBUG && PARAMS.has('nointro')) o.intro = false;
+    return Object.keys(o).length ? o : undefined;
+  };
   const SOLO_LEAD_MS = 800;
 
   const $ = (id) => document.getElementById(id);
@@ -299,6 +305,7 @@
     if (!a || clapLoading) return;
     clapLoading = true;
     loadSample(a, 'sfx/golf-clap.mp3').then((b) => { clapBuffer = b; }, (err) => { clapLoading = false; console.warn("Couldn't load the golf clap.", err); });
+    ['sfx/intro-beat.mp3', 'sfx/intro-write-bars.mp3', 'sfx/intro-freestyle.mp3'].forEach((url) => introSample(url).catch(() => {}));
     Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
   function playClap() {
@@ -764,6 +771,15 @@
     state.phase = p;
     if (state.game && p.totals) state.game.totals = p.totals;
     if (state.away || state.solo) return;
+    if (p.phase === 'intro') {
+      stopStage();
+      hideWrite();
+      hideOverlays();
+      renderChips();
+      showIntro(p);
+      return;
+    }
+    hideIntro();
     if (p.phase === 'results') {
       if (state.over) showResults(state.over);
       return;
@@ -1246,6 +1262,121 @@
     $('next-round-btn').disabled = true;
     net.emit('input', { type: 'nextRound', round: p.wbRound });
     playSfx('submit');
+  });
+
+  // ---------- Intro: the rules, read out over a beat, at the start of a game ----------
+  // `at` is when each line is spoken in the voiceover (seconds), so it appears as it's said.
+  const INTROS = {
+    writebars: {
+      title: 'Write bars',
+      voice: 'sfx/intro-write-bars.mp3',
+      rules: [
+        [1.1, "You've got 4 lines to spit"],
+        [3.0, "We hand you a word for every line"],
+        [5.4, 'Get your bars written down'],
+        [7.2, "Then you or a robot lays 'em down for the crew"],
+        [9.9, 'Everyone votes for the hardest verse'],
+        [11.4, 'Most votes takes the win'],
+      ],
+      cta: [13.6, 'Now get in the booth.'],
+    },
+    freestyle: {
+      title: 'Freestyle',
+      voice: 'sfx/intro-freestyle.mp3',
+      rules: [
+        [2.0, "You've got 4 lines to freestyle"],
+        [4.0, 'Each one comes with a word you gotta rhyme at the end'],
+        [7.1, 'Perform straight to your crew'],
+        [8.8, 'Get creative and make that flow work'],
+        [11.3, 'Most votes wins'],
+      ],
+      cta: [12.7, "Let's see what you got."],
+    },
+  };
+  const introSamples = {}; // url -> Promise<AudioBuffer>
+  function introSample(url) {
+    const a = getAudioCtx();
+    if (!a) return Promise.reject(new Error('no audio'));
+    if (!introSamples[url]) introSamples[url] = loadSample(a, url).catch((err) => { delete introSamples[url]; throw err; });
+    return introSamples[url];
+  }
+  let intro = null; // { key, gain, sources, timers }
+  function showIntro(p) {
+    const info = INTROS[p.mode] || INTROS.writebars;
+    const key = `${state.game ? state.game.round : 0}:${p.introStartedAt}`;
+    $('intro-skip').hidden = !isHost();
+    if (intro && intro.key === key) {
+      $('intro-overlay').classList.add('show');
+      return;
+    }
+    hideIntro();
+    $('intro-overlay').classList.add('show');
+    // Where the intro is up to (late joiners pick it up part-way through).
+    const elapsed = Math.max(0, (net.hostNow() - p.introStartedAt) / 1000);
+    const total = Math.max(0.1, (p.introEndsAt - p.introStartedAt) / 1000);
+    $('intro-title').textContent = info.title;
+    $('intro-rules').innerHTML = info.rules.map(([at, text]) => `<li style="animation-delay:${Math.max(0, at - elapsed).toFixed(2)}s">${esc(text)}</li>`).join('');
+    $('intro-cta').textContent = info.cta[1];
+    $('intro-cta').style.animationDelay = `${Math.max(0, info.cta[0] - elapsed).toFixed(2)}s`;
+    const bar = $('intro-progress');
+    bar.style.transition = 'none';
+    bar.style.width = `${Math.min(100, (elapsed / total) * 100)}%`;
+    void bar.offsetWidth;
+    bar.style.transition = `width ${Math.max(0, total - elapsed).toFixed(2)}s linear`;
+    bar.style.width = '100%';
+    replay($('intro-overlay').querySelector('.intro-card'), 'go');
+    intro = { key, gain: null, sources: [] };
+    const mine = intro;
+    const a = getAudioCtx();
+    if (!a) return;
+    // The beat loops quietly under the louder voiceover; the beat follows the music toggle, the voice the sound effects one.
+    const bed = a.createGain();
+    bed.gain.value = 0.45;
+    bed.connect(musicGain);
+    const voice = a.createGain();
+    voice.gain.value = 1;
+    voice.connect(sfxGain);
+    mine.gain = [bed, voice];
+    const startAt = a.currentTime + 0.05;
+    introSample('sfx/intro-beat.mp3').then((buf) => {
+      if (intro !== mine) return;
+      const src = a.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(bed);
+      src.start(Math.max(a.currentTime, startAt), (elapsed + Math.max(0, a.currentTime - startAt)) % buf.duration);
+      mine.sources.push(src);
+    }, () => {});
+    introSample(info.voice).then((buf) => {
+      if (intro !== mine) return;
+      const from = elapsed + Math.max(0, a.currentTime - startAt);
+      if (from >= buf.duration) return;
+      const src = a.createBufferSource();
+      src.buffer = buf;
+      src.connect(voice);
+      src.start(Math.max(a.currentTime, startAt), from);
+      mine.sources.push(src);
+    }, () => {});
+  }
+  function hideIntro() {
+    $('intro-overlay').classList.remove('show');
+    if (!intro) return;
+    const { gain, sources } = intro;
+    intro = null;
+    if (ac && gain) {
+      const t = ac.currentTime;
+      gain.forEach((g) => {
+        g.gain.cancelScheduledValues(t);
+        g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.linearRampToValueAtTime(0.0001, t + 0.5);
+      });
+      sources.forEach((s) => { try { s.stop(t + 0.55); } catch { /* done */ } });
+    }
+  }
+  $('intro-skip').addEventListener('click', () => {
+    $('intro-skip').disabled = true;
+    net.emit('input', { type: 'skipIntro' });
+    setTimeout(() => { $('intro-skip').disabled = false; }, 1500);
   });
 
   // ---------- Results ----------

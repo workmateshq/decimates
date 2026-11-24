@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MIC_DROP_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
+  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MIC_DROP_MS, INTRO_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
 } = require('../public/js/engine.js');
 const Words = require('../public/js/words.js');
 const Tracks = require('../public/js/tracks.js');
@@ -31,6 +31,7 @@ function makeRoom(mode = 'freestyle', maxPlayers) {
     random: seeded(7),
     now: () => clock,
     maxPlayers,
+    introMs: 0, // no intro screen in these tests (it has its own)
   });
   room.mode = mode;
   // Moves the clock on and lets the room's loop notice.
@@ -328,4 +329,29 @@ test('Freestyle: a 7-second mic drop after the 16 bars, then the vote', () => {
   assert.equal(ctx.room.phase, 'turn', 'the mic drop plays first');
   ctx.advance(MIC_DROP_MS);
   assert.equal(ctx.room.phase, 'vote');
+});
+
+test('a game opens with the intro screen (the rules over a beat); the host can skip it', () => {
+  for (const mode of ['freestyle', 'writebars']) {
+    const ctx = makeRoom(mode);
+    ctx.room.introMs = undefined; // the real intro length
+    ctx.room.join('p1');
+    ctx.room.join('p2');
+    ctx.room.start('p1');
+    assert.equal(ctx.room.phase, 'intro', mode);
+    const p = ctx.last('gameStarted').data;
+    assert.equal(p.introEndsAt - p.introStartedAt, INTRO_MS[mode]);
+    ctx.advance(INTRO_MS[mode] - 100);
+    assert.equal(ctx.room.phase, 'intro');
+    ctx.advance(100);
+    assert.equal(ctx.room.phase, mode === 'writebars' ? 'write' : 'turn', 'then the game');
+  }
+  const ctx = makeRoom('writebars');
+  ctx.room.introMs = undefined;
+  ctx.room.join('p1');
+  ctx.room.join('p2');
+  ctx.room.start('p1');
+  assert.equal(ctx.room.input('p2', { type: 'skipIntro' }), false, 'only the host skips');
+  assert.ok(ctx.room.input('p1', { type: 'skipIntro' }));
+  assert.equal(ctx.room.phase, 'write');
 });

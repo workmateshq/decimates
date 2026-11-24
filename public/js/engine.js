@@ -43,6 +43,9 @@
   const WB_GAP_MS = MIC_DROP_MS; // Write Bars: after a performance (golf clap and mic drop while the track fades)
   const WB_VOTE_SECONDS = 30; // rating everyone at once takes a little longer
   const STANDINGS_MS = 8000; // the final scoreboard, before the podium
+  // The intro screen at the start of a game: the rules read out over a beat (sfx/intro-<mode>.mp3), a little
+  // longer than the voiceover. The host can skip it.
+  const INTRO_MS = { writebars: 16000, freestyle: 15000 };
   const NEXT_ROUND_SECONDS = 30; // between rounds: rappers press "Play next round"; whoever has by then plays on
   const LINE_MAX = 80; // characters per line
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
@@ -113,6 +116,7 @@
       this.setInterval = hooks.setInterval || ((fn, ms) => setInterval(fn, ms));
       this.clearInterval = hooks.clearInterval || ((id) => clearInterval(id));
       this.random = hooks.random || Math.random;
+      this.introMs = hooks.introMs; // the intro screen's length (tests use 0 to skip it); default INTRO_MS
       this.maxPlayers = Math.min(MAX_PLAYERS, hooks.maxPlayers || MAX_PLAYERS); // rapper slots (tests use fewer)
       this.now = hooks.now || (() => Date.now());
       this.leadMs = hooks.leadMs ?? LEAD_MS;
@@ -240,11 +244,18 @@
         // options.writeSeconds: a shorter write timer for testing (?debug&write=10).
         const secs = Number.isFinite(options.writeSeconds) ? Math.max(5, Math.min(WRITE_SECONDS, options.writeSeconds)) : WRITE_SECONDS;
         this.wb = { round: 0, rounds: WB_ROUNDS, writeMs: secs * 1000, writeEndsAt: 0, entries: new Map(), queue: [], perf: -1, performers: [], votes: new Map(), totals: new Map(), roundResults: [], standingsEndsAt: 0 };
-        this.beginWrite(false);
-        if (!this.started) return true; // nobody left to write
       } else {
         this.wb = null;
-        this.beginTurn(0, false);
+      }
+      // First the intro screen (the rules over a beat), unless it's switched off (options.intro === false).
+      const introMs = options.intro === false ? 0 : (this.introMs ?? INTRO_MS[this.mode] ?? 0);
+      if (introMs > 0) {
+        this.phase = 'intro';
+        this.introStartedAt = this.now();
+        this.introEndsAt = this.introStartedAt + introMs;
+      } else {
+        this.beginFirst(false);
+        if (!this.started) return true; // nobody left to play
       }
       this.broadcast('gameStarted', this.gamePayload());
       this.stopLoop();
@@ -252,9 +263,23 @@
       return true;
     }
 
+    // After the intro: the first write phase (Write Bars) or the first turn (Freestyle).
+    beginFirst(announce = true) {
+      if (this.mode === 'writebars') this.beginWrite(announce);
+      else this.beginTurn(0, announce);
+    }
+
+    // The host skips the intro.
+    skipIntro(id) {
+      if (this.phase !== 'intro' || id !== this.hostId) return false;
+      this.beginFirst();
+      return true;
+    }
+
     /**
      * Input from anyone in the room:
      *   { type: 'mode', mode: 'writebars'|'freestyle' } the host picks the mode in the lobby.
+     *   { type: 'skipIntro' } the host skips the intro screen.
      *   Freestyle:
      *   { type: 'vote', stars: 1-5, turn: turnIndex } rate the rapper whose turn just finished.
      *   The rapper can't vote for themselves; rappers and the crowd can vote for everyone else.
@@ -267,6 +292,7 @@
       if (!msg || typeof msg !== 'object') return false;
       if (msg.type === 'mode') return this.setMode(id, msg.mode);
       if (!this.started) return false;
+      if (msg.type === 'skipIntro') return this.skipIntro(id);
       if (msg.type === 'vote') return this.vote(id, msg.stars, msg.turn);
       if (msg.type === 'draft' || msg.type === 'done') return this.write(id, msg.lines, msg.voice, msg.type === 'done');
       if (msg.type === 'edit') return this.unlockWrite(id);
@@ -358,6 +384,10 @@
     gameTick() {
       if (!this.started) return;
       const now = this.now();
+      if (this.phase === 'intro') {
+        if (now >= this.introEndsAt) this.beginFirst();
+        return;
+      }
       if (this.mode === 'writebars') return this.writeBarsTick(now);
       if (this.phase === 'turn' && now >= this.turn.endAt + MIC_DROP_MS) this.openVote();
       else if (this.phase === 'vote' && now >= this.voteEndsAt) this.closeVote();
@@ -396,6 +426,7 @@
         p.turn = { ...this.turn, pairs: this.turn.pairs.map((pair) => pair.slice()), name: rapper ? rapper.name : '', color: rapper ? rapper.color : '#fff' };
         if (this.turn.lines) p.turn.lines = this.turn.lines.slice();
       }
+      if (this.phase === 'intro') Object.assign(p, { introStartedAt: this.introStartedAt, introEndsAt: this.introEndsAt });
       const wb = this.mode === 'writebars' ? this.wb : null;
       if (wb) Object.assign(p, { wbRound: wb.round, rounds: wb.rounds, totals: [...wb.totals.values()].map((t) => ({ ...t })) });
       if (wb && this.phase === 'write') Object.assign(p, { writeEndsAt: wb.writeEndsAt, writeMs: wb.writeMs, writers: this.serializeWriters() });
@@ -696,6 +727,7 @@
     MIC_DROP_MS,
     WB_VOTE_SECONDS,
     STANDINGS_MS,
+    INTRO_MS,
     NEXT_ROUND_SECONDS,
     LINE_MAX,
     TICK_RATE,

@@ -111,3 +111,25 @@
 .next-round[hidden] { display: none; }
 .next-round-status { color: var(--muted); font-size: 14px; }
 .next-round-status b { color: var(--gold); font-variant-numeric: tabular-nums; }
+
+/* ---------- Intro: how to play, read out over a beat ---------- */
+.intro-overlay { align-items: center; }
+.intro-card { width: min(560px, 94vw); text-align: left; }
+.intro-card .kicker, .intro-card .big-title { text-align: center; }
+.intro-card.go .big-title { animation: md-jump 0.7s cubic-bezier(.3, 1.7, .5, 1) both; }
+.intro-rules { list-style: none; margin: 16px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.intro-rules li {
+  position: relative; padding: 10px 14px 10px 42px; border-radius: 10px; background: #111; border: 1px solid var(--line);
+  font-size: 17px; line-height: 1.3; color: var(--ink); opacity: 0; animation: rule-in 0.45s cubic-bezier(.3, 1.4, .5, 1) both;
+}
+.intro-rules li::before {
+  content: '💎' / ''; position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 16px;
+}
+@keyframes rule-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+.intro-cta {
+  margin-top: 12px; text-align: center; font-family: var(--street); font-size: clamp(28px, 5vw, 42px); color: var(--gold);
+  text-shadow: 0 3px 0 #000; animation: md-jump 0.7s cubic-bezier(.3, 1.7, .5, 1) both;
+}
+.intro-bar { margin-top: 14px; height: 4px; border-radius: 2px; background: #222; overflow: hidden; }
+.intro-bar i { display: block; height: 100%; width: 0; background: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .intro-rules li, .intro-cta, .intro-card.go .big-title { animation-duration: 0.01s; } }
