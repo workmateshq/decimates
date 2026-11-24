@@ -46,7 +46,7 @@
   const STANDINGS_MS = 8000; // the final scoreboard, before the podium
   // The intro screen at the start of a game: the rules read out over a beat (sfx/intro-<mode>.mp3), a little
   // longer than the voiceover. The host can skip it.
-  const INTRO_MS = { writebars: 16000, freestyle: 15000 };
+  const INTRO_MS = { writebars: 16000, freestyle: 19500 };
   const NEXT_ROUND_SECONDS = 30; // between rounds: rappers press "Play next round"; whoever has by then plays on
   const LINE_MAX = 80; // characters per line
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0

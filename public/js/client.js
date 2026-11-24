@@ -1318,13 +1318,13 @@
       title: 'Freestyle',
       voice: 'sfx/intro-freestyle.mp3',
       rules: [
-        [2.0, "You've got 4 lines to freestyle"],
-        [4.0, 'Each one comes with a word you gotta rhyme at the end'],
-        [7.1, 'Perform straight to your crew'],
-        [8.8, 'Get creative and make that flow work'],
-        [11.3, 'Most votes wins'],
+        [1.8, "You've got 16 lines to freestyle"],
+        [4.7, 'Each one comes with a word you gotta rhyme at the end'],
+        [8.5, 'Perform straight to your crew'],
+        [11.0, 'Get creative and make that flow work'],
+        [14.4, 'Most votes wins'],
       ],
-      cta: [12.7, "Let's see what you got."],
+      cta: [16.3, "Let's see what you got."],
     },
   };
   const introSamples = {}; // url -> Promise<AudioBuffer>
