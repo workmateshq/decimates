@@ -318,7 +318,7 @@
     Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
   // The golf clap when a rapper finishes, then the round-end voiceover a couple of seconds later (the clap dips
-  // under it). The host picks which voiceover (turn.roundEnd, cycling 1-3) so the whole room hears the same one.
+  // under it). The host picks which voiceover (turn.roundEnd, cycling through them) so the whole room hears the same one.
   // They ring on into the next turn's intro, and stop when leaving the game (e.g. going home).
   function playClap() {
     if (!ac || ac.state !== 'running') return;

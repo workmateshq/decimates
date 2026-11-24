@@ -36,7 +36,7 @@
   const WB_RAP_BARS = WB_LINES * WB_BARS_PER_LINE; // 8 bars after the 4-bar intro
   // Who performs Write Bars lines: the rapper live, or the robot MC with a male or female voice.
   const VOICES = ['self', 'male', 'female'];
-  const ROUND_ENDS = 3; // sfx/round-end-01.mp3 .. -03.mp3
+  const ROUND_ENDS = 4; // sfx/round-end-01.mp3 .. -04.mp3
   const ADLIBS = ['faaah', 'damn']; // sfx/<name>.mp3, alternated
   const VOICE_ACCENTS = ['GB', 'US']; // the robot voice's accent, picked at random per performance
   const WB_BPM = 90; // only the 90 BPM tracks: room to say the lines
@@ -686,7 +686,7 @@
       }
     }
 
-    // The voiceover after each turn (sfx/round-end-0N.mp3), cycling 1, 2, 3, so everyone hears the same one.
+    // The voiceover after each turn (sfx/round-end-0N.mp3), cycling through them, so everyone hears the same one.
     nextRoundEnd() {
       return (this.roundEndCount++ % ROUND_ENDS) + 1;
     }
