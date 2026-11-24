@@ -296,6 +296,8 @@
   }
   // Sampled sound effects: the golf clap that marks the end of a round, and the "faaah" ad-lib.
   let clapBuffer = null;
+  let roundEndBuffer = null;
+  const ROUND_END_DELAY = 2.5; // seconds after the golf clap starts
   const adlibBuffers = {};
   // Where each ad-lib's hit is in its file, so it can land on the beat.
   const ADLIB_HIT_SEC = { faaah: 0.2, damn: 0.03 };
@@ -308,15 +310,25 @@
     if (!a || clapLoading) return;
     clapLoading = true;
     loadSample(a, 'sfx/golf-clap.mp3').then((b) => { clapBuffer = b; }, (err) => { clapLoading = false; console.warn("Couldn't load the golf clap.", err); });
+    loadSample(a, 'sfx/round-end.mp3').then((b) => { roundEndBuffer = b; }, (err) => console.warn("Couldn't load the round-end sting.", err));
     ['sfx/intro-beat.mp3', 'sfx/intro-write-bars.mp3', 'sfx/intro-freestyle.mp3'].forEach((url) => introSample(url).catch(() => {}));
     Engine.ADLIBS.forEach((name) => loadSample(a, `sfx/${name}.mp3`).then((b) => { adlibBuffers[name] = b; }, (err) => console.warn(`Couldn't load the ${name} ad-lib.`, err)));
   }
+  // The golf clap when a rapper finishes, then the round-end sting a couple of seconds later. Both are
+  // tied to this turn's audio, so they stop if the turn does (e.g. going home).
   function playClap() {
-    if (!clapBuffer || !ac || ac.state !== 'running') return;
-    const src = ac.createBufferSource();
-    src.buffer = clapBuffer;
-    src.connect(sfxGain);
-    src.start();
+    if (!ac || ac.state !== 'running') return;
+    const t = ac.currentTime;
+    const play = (buffer, at) => {
+      if (!buffer) return;
+      const src = ac.createBufferSource();
+      src.buffer = buffer;
+      src.connect(sfxGain);
+      src.start(at);
+      if (stage.audio) stage.audio.clicks.push(src);
+    };
+    play(clapBuffer, t);
+    play(roundEndBuffer, t + ROUND_END_DELAY);
   }
   const trackLabel = (t) => t.name;
 
