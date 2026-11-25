@@ -100,7 +100,34 @@
     src.stop(t + dur + 0.05);
   }
 
-  // Cartoon sound effects, all synthesised.
+  // Recorded sounds (public/sound/), fetched and decoded once you're in a room.
+  const samples = {}; // name -> AudioBuffer
+  const sampleLoads = {};
+  function loadSample(name) {
+    const a = getAudioCtx();
+    if (!a) return Promise.resolve(null);
+    if (!sampleLoads[name]) {
+      sampleLoads[name] = fetch(`sound/${name}.mp3`)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+        .then((ab) => new Promise((res, rej) => a.decodeAudioData(ab, res, rej)))
+        .then((b) => { samples[name] = b; return b; })
+        .catch(() => { delete sampleLoads[name]; return null; });
+    }
+    return sampleLoads[name];
+  }
+  function playSample(name, gain = 1) {
+    const buf = samples[name];
+    if (!buf) return false;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const g = ac.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(sfxGain);
+    src.start();
+    return true;
+  }
+
+  // Cartoon sound effects, synthesised (the explosion is a recording).
   const sfx = {
     uiHover() { tone(ac.currentTime, 'sine', 1900, 1600, 0.035, 0.05, 0.002); },
     uiClick() {
@@ -132,8 +159,9 @@
       tone(t, 'square', fast ? 1800 : 1300, fast ? 1800 : 1300, 0.025, fast ? 0.12 : 0.07, 0.001);
       noise(t, 0.02, 'highpass', 5000, fast ? 0.12 : 0.07, 0.7);
     },
-    // KA-BOOM: a noisy thump with a falling sub, then crackle.
+    // KA-BOOM: sound/explosion.mp3 (or, until it's loaded, a noisy thump with a falling sub, then crackle).
     boom() {
+      if (playSample('explosion', 1)) return;
       const t = ac.currentTime;
       tone(t, 'sine', 140, 30, 1.2, 0.9, 0.003);
       noise(t, 1.6, 'lowpass', 900, 0.9, 0.7);
@@ -180,31 +208,61 @@
     sfx[name](...args);
   }
 
-  // The fuse hiss while votes are open: filtered noise that fades with the fuse. Returns a stop function.
+  // A lit fuse: a bright, fluttering hiss with random crackles and spits, getting louder as it burns down.
+  // Returns a stop function.
   function fuseHiss(seconds) {
     if (!ac || ac.state !== 'running') return () => {};
     const t = ac.currentTime;
+    const out = ac.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.linearRampToValueAtTime(0.14, t + 0.2);
+    out.gain.linearRampToValueAtTime(0.24, t + Math.max(0.4, seconds));
+    out.connect(sfxGain);
+    // The hiss: white noise, high-passed, with a sizzly peak.
     const src = noiseSource();
     src.loop = true;
-    const f = ac.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = 6000;
-    f.Q.value = 0.8;
-    const g = ac.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.05, t + 0.3);
-    g.gain.linearRampToValueAtTime(0.09, t + Math.max(0.4, seconds));
-    src.connect(f).connect(g).connect(sfxGain);
-    src.start(t);
+    const hp = ac.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2600;
+    const peak = ac.createBiquadFilter();
+    peak.type = 'peaking';
+    peak.frequency.value = 6500;
+    peak.Q.value = 0.8;
+    peak.gain.value = 9;
+    // Flutter: two out-of-step wobbles on the level, so it sputters rather than drones.
+    const wob = ac.createGain();
+    wob.gain.value = 0.65;
+    const lfos = [[11, 0.22], [17.3, 0.14]].map(([hz, depth]) => {
+      const o = ac.createOscillator();
+      o.frequency.value = hz;
+      const d = ac.createGain();
+      d.gain.value = depth;
+      o.connect(d).connect(wob.gain);
+      o.start(t);
+      return o;
+    });
+    src.connect(hp).connect(peak).connect(wob).connect(out);
+    src.start(t, Math.random());
+    // Crackles: little bursts of spark.
+    const crackle = setInterval(() => {
+      if (ac.state !== 'running') return;
+      const n = ac.currentTime;
+      const count = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        noise(n + Math.random() * 0.09, 0.004 + Math.random() * 0.012, 'highpass', 2500 + Math.random() * 4000, 0.3 + Math.random() * 0.5, 0.7, out);
+      }
+    }, 90);
     let stopped = false;
     return () => {
       if (stopped) return;
       stopped = true;
+      clearInterval(crackle);
       const n = ac.currentTime;
-      g.gain.cancelScheduledValues(n);
-      g.gain.setValueAtTime(g.gain.value, n);
-      g.gain.linearRampToValueAtTime(0.0001, n + 0.15);
-      try { src.stop(n + 0.2); } catch { /* done */ }
+      out.gain.cancelScheduledValues(n);
+      out.gain.setValueAtTime(out.gain.value, n);
+      out.gain.linearRampToValueAtTime(0.0001, n + 0.12);
+      try { src.stop(n + 0.15); } catch { /* done */ }
+      lfos.forEach((o) => { try { o.stop(n + 0.15); } catch { /* done */ } });
     };
   }
 
@@ -406,6 +464,7 @@
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
     loadIntroVo();
+    loadSample('explosion');
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -1222,8 +1281,10 @@
       dyns[i].classList.add('lit');
       burnOut(dyns[i]);
     });
+    if (t < 0.4) mu.stopHiss = fuseHiss(0.5);
     if (winners.length < m.answers.length) playSfx('fizzle');
     later(480 - t * 1000, () => {
+      if (mu.stopHiss) mu.stopHiss();
       const labels = winners.map((i) => dyns[i].querySelector('.dyn-label'));
       const from = labels.map((l) => l.getBoundingClientRect());
       const arts = winners.map((i) => dyns[i].querySelector('.dyn-art').getBoundingClientRect());
@@ -1476,7 +1537,7 @@
     setTimeout(() => box.replaceChildren(), 5600);
   }
 
-  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, introVo, get intro() { return intro; } };
+  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, introVo, samples, fuseHiss, get intro() { return intro; } };
 
   buildSlots();
   renderSlots();
