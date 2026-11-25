@@ -6,7 +6,7 @@ const Prompts = require('../public/js/prompts.js');
 const {
   GameRoom, generateRoomCode, ringDeal, scoreMatchup, sanitizeAnswer, sanitizeName, NAME_MAX, ANSWER_MAX, NO_ANSWER,
   WRITE_SECONDS, WRITE_GRACE_MS, SHOW_MS, VOTE_SECONDS, FINAL_VOTE_SECONDS, REVEAL_MS, SWEEP_REVEAL_MS, CLEAN_SWEEP_BONUS,
-  NEXT_ROUND_SECONDS, STANDINGS_MS, INTRO_MS, ROUNDS, MAX_PLAYERS, MIN_PLAYERS, STINGERS,
+  NEXT_ROUND_SECONDS, STANDINGS_MS, INTRO_MS, FINAL_INTRO_MS, ROUNDS, MAX_PLAYERS, MIN_PLAYERS, STINGERS,
 } = E;
 
 function seeded(seed) {
@@ -143,6 +143,30 @@ test('a game opens with the intro; the host can skip it', () => {
   ctx2.room.start('a');
   ctx2.advance(INTRO_MS);
   assert.equal(ctx2.room.phase, 'write', 'or it ends on its own');
+});
+
+test('before the final: a short final-round intro (skippable), then the final write', () => {
+  const ctx = makeRoom({ introMs: null });
+  ['a', 'b', 'c'].forEach((id) => ctx.room.join(id));
+  ctx.room.start('a', { comicFinal: true });
+  const { room } = ctx;
+  room.input('a', { type: 'skipIntro' });
+  for (let round = 1; round < ROUNDS; round++) {
+    writeAll(ctx);
+    while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
+    ['a', 'b', 'c'].forEach((id) => room.input(id, { type: 'nextRound', round }));
+    if (round < ROUNDS - 1) assert.equal(room.phase, 'write', `round ${round + 1} starts straight away`);
+  }
+  assert.equal(room.phase, 'intro');
+  const p = room.phasePayload();
+  assert.equal(p.introKind, 'final');
+  assert.equal(p.comicFinal, true);
+  assert.equal(p.introEndsAt - p.introStartedAt, FINAL_INTRO_MS);
+  assert.equal(room.input('b', { type: 'skipIntro' }), false, 'only the host');
+  ctx.advance(FINAL_INTRO_MS);
+  assert.equal(room.phase, 'write');
+  assert.equal(room.round, ROUNDS);
+  assert.ok(room.isFinal);
 });
 
 test('writing: 90 seconds on the host clock, 2 prompts each, answers private until the matchups', () => {

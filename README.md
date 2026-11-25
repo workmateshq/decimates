@@ -11,7 +11,9 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 - **Starting**: like Rapmates, a room can start with just you (practice) or up to 8 players. The host presses start.
 - **Practice**: when nobody else can vote on a matchup (playing alone, or 2 players with no crowd), voting is skipped and every answer goes off for no points.
 - **Look**: dark panels over a slow hypnotic spiral. Each joke is a paper label tied to a bundle of dynamite; its fuse burns down with the vote clock.
-- **Intro**: every game opens with a 33-second "How to play" screen. A voiceover ([`public/sound/intro-vo.mp3`](public/sound/intro-vo.mp3)) explains the rules while bullet points appear in time with it. It plays through the sound-effects toggle, and late joiners pick it up part-way through. The host can skip it.
+- **Intro**: every game opens with a 30-second "How to play" screen. A voiceover ([`public/sound/intro-vo.mp3`](public/sound/intro-vo.mp3)) explains the rules while bullet points appear in time with it.
+- **Final-round intro**: before round 3, a 16-second screen explains the final (same prompt or comic for everyone, up to 3 votes, triple points) over its own voiceover ([`public/sound/final-round-vo.mp3`](public/sound/final-round-vo.mp3)).
+- **Both intros**: they play through the sound-effects toggle, late joiners pick them up part-way through, and the host can skip them.
 
 ### Rounds 1 and 2: head to head
 
@@ -23,7 +25,7 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 3. **Matchups**: the prompts come up one at a time.
    - The prompt appears big, then docks at the top of the screen.
    - The two answers fade in on bundles of dynamite. They're anonymous while voting.
-   - The announcer (your browser's speech) reads the prompt out. Answers aren't read aloud.
+   - The announcer (your browser's speech) reads the prompt out, saying "blank" for ___. Answers aren't read aloud.
 4. **Voting (15 seconds)**: everyone except the two authors votes for their favourite. That means the other players plus the crowd. Voters' faces appear on the answer they picked.
 5. **The reveal**: the authors and the vote split are shown. The winner's fuse burns out and it goes off: a flash, a shockwave, sparks and bits of stick, then smoke that billows over the screen while the label flies from the bundle into the middle of the screen.
 6. **Scoreboard**: after every matchup, the scoreboard shows the round's points and running totals.

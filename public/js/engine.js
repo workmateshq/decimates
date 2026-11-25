@@ -37,7 +37,8 @@
   const STINGERS = 8; // end-of-matchup announcer lines, cycled (the host picks, so everyone hears the same one)
   const STANDINGS_MS = 8000; // the final scoreboard, before the podium
   const NEXT_ROUND_SECONDS = 30; // between rounds: players press "Play next round"; whoever has by then plays on
-  const INTRO_MS = 33000; // the how-to-play screen (the 32 s voiceover, sound/intro-vo.mp3); the host can skip it
+  const INTRO_MS = 30000; // the how-to-play screen (the 29 s voiceover, sound/intro-vo.mp3); the host can skip it
+  const FINAL_INTRO_MS = 16500; // before the final: what's different (the 15.5 s voiceover, sound/final-round-vo.mp3)
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Cartoon paint-box colours, one per seat.
   const PLAYER_COLORS = ['#E8432E', '#2E7DD7', '#F5B400', '#3BA55C', '#9B59D0', '#EE7A1F', '#E64E9B', '#1FA9A0'];
@@ -111,7 +112,7 @@
       this.clearInterval = hooks.clearInterval || ((id) => clearInterval(id));
       this.random = hooks.random || Math.random;
       this.now = hooks.now || (() => Date.now());
-      this.introMs = hooks.introMs; // the intro screen's length (tests use 0 to skip it); default INTRO_MS
+      this.introMs = hooks.introMs; // both intro screens' length (tests use 0 to skip them); default INTRO_MS / FINAL_INTRO_MS
       this.maxPlayers = Math.min(MAX_PLAYERS, hooks.maxPlayers || MAX_PLAYERS);
       this.hostId = null;
       this.members = new Map(); // id -> { id, role: 'player'|'crowd', number, name, color, seq }
@@ -251,11 +252,9 @@
       this.comicFinal = typeof options.comicFinal === 'boolean' ? options.comicFinal : this.random() < Prompts.COMIC_CHANCE;
       const secs = Number.isFinite(options.writeSeconds) ? Math.max(5, Math.min(WRITE_SECONDS, options.writeSeconds)) : WRITE_SECONDS;
       this.writeMs = secs * 1000;
-      const introMs = options.intro === false ? 0 : (this.introMs ?? INTRO_MS);
-      if (introMs > 0) {
-        this.phase = 'intro';
-        this.introStartedAt = this.now();
-        this.introEndsAt = this.introStartedAt + introMs;
+      this.introsOn = options.intro !== false;
+      if (this.introLength('rules') > 0) {
+        this.beginIntro('rules', false);
       } else {
         this.beginWrite(false);
       }
@@ -283,6 +282,20 @@
       if (msg.type === 'vote') return this.vote(id, msg);
       if (msg.type === 'nextRound') return this.readyNextRound(id, msg.round);
       return false;
+    }
+
+    introLength(kind) {
+      if (!this.introsOn) return 0;
+      return this.introMs ?? (kind === 'final' ? FINAL_INTRO_MS : INTRO_MS);
+    }
+
+    // An intro screen: 'rules' (how to play, at the start) or 'final' (before the final round).
+    beginIntro(kind, announce = true) {
+      this.phase = 'intro';
+      this.introKind = kind;
+      this.introStartedAt = this.now();
+      this.introEndsAt = this.introStartedAt + this.introLength(kind);
+      if (announce) this.broadcastPhase();
     }
 
     skipIntro(id) {
@@ -506,7 +519,9 @@
       const going = this.nextRoundPlayers().filter((id) => this.nextReady.has(id));
       if (!going.length) return this.endGame();
       this.order = going;
-      this.beginWrite();
+      // The final gets its own short intro first.
+      if (this.finalRound && this.round + 1 === ROUNDS && this.introLength('final') > 0) this.beginIntro('final');
+      else this.beginWrite();
     }
 
     gameTick() {
@@ -595,7 +610,7 @@
 
     phasePayload() {
       const p = { phase: this.phase, round: this.round, rounds: ROUNDS, now: this.now(), totals: [...this.totals.values()].map((t) => ({ ...t })) };
-      if (this.phase === 'intro') Object.assign(p, { introStartedAt: this.introStartedAt, introEndsAt: this.introEndsAt });
+      if (this.phase === 'intro') Object.assign(p, { introKind: this.introKind, introStartedAt: this.introStartedAt, introEndsAt: this.introEndsAt, comicFinal: this.introKind === 'final' && this.comicFinal });
       if (this.phase === 'write') Object.assign(p, { writeEndsAt: this.writeEndsAt, writeMs: this.writeMs, final: this.isFinal, writers: this.serializeWriters() });
       if (this.phase === 'matchup') p.matchup = this.serializeMatchup();
       if (this.phase === 'standings') {
@@ -659,6 +674,7 @@
     STANDINGS_MS,
     NEXT_ROUND_SECONDS,
     INTRO_MS,
+    FINAL_INTRO_MS,
     PLAYER_COLORS,
     NAME_MAX,
   };

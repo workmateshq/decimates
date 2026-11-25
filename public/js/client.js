@@ -288,7 +288,8 @@
     const synth = window.speechSynthesis;
     if (!synth || !soundPrefs.sfx || !text) return;
     if (cancel) synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
+    // Blanks ("___") are read out as "blank".
+    const u = new SpeechSynthesisUtterance(text.replace(/_{2,}/g, ' blank '));
     const v = announcerVoice();
     if (v) {
       u.voice = v;
@@ -463,8 +464,7 @@
     $('setup-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
-    loadIntroVo();
-    loadSample('explosion');
+    ['intro-vo', 'final-round-vo', 'explosion'].forEach(loadSample);
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -806,42 +806,53 @@
     }
   }
 
-  // ---------- Intro: how to play, over the voiceover (sound/intro-vo.mp3) ----------
-  // `at` is when each rule appears (seconds into the intro), lined up with the pauses in the voiceover.
-  const INTRO_RULES = [
-    [7.2, "You'll get a series of goofy prompts."],
-    [10.1, 'Type whatever will tickle the most funny bones.'],
-    [14.0, 'Your answers go head to head, and everyone else votes for their favourite.'],
-    [21.3, 'Decimate the room to win the round.'],
-    [26.5, 'No wrong answers... just bad jokes.'],
-  ];
-  const INTRO_CTA = [28.5, '90 seconds on the clock. Ready?'];
-  // The voiceover is fetched and decoded as soon as you're in a room, so it's ready when a game starts.
-  const introVo = { buf: null, loading: null };
-  function loadIntroVo() {
-    if (introVo.loading) return introVo.loading;
-    const a = getAudioCtx();
-    if (!a) return Promise.resolve(null);
-    introVo.loading = fetch('sound/intro-vo.mp3')
-      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
-      .then((ab) => new Promise((res, rej) => a.decodeAudioData(ab, res, rej)))
-      .then((b) => { introVo.buf = b; return b; })
-      .catch(() => { introVo.loading = null; return null; });
-    return introVo.loading;
-  }
+  // ---------- Intros: how to play (start of the game) and the final round, over their voiceovers ----------
+  // `at` is when each line appears (seconds in), lined up with the pauses in the voiceover.
+  const INTROS = {
+    rules: {
+      sound: 'intro-vo',
+      kicker: 'How to play',
+      title: 'Decimates',
+      rules: [
+        [6.4, "You'll get a series of goofy prompts."],
+        [9.2, 'Type whatever will tickle the most funny bones.'],
+        [13.0, 'Your answers go head to head, and everyone else votes for their favourite.'],
+        [19.3, 'Decimate the room to win the round.'],
+        [22.5, 'No wrong answers... just bad jokes.'],
+      ],
+      cta: [25.8, '90 seconds on the clock. Ready?'],
+    },
+    final: {
+      sound: 'final-round-vo',
+      kicker: 'Round 3',
+      title: 'The final round',
+      rules: (p) => [
+        [2.6, p.comicFinal ? 'Everyone captions the exact same comic.' : 'Everyone gets the exact same prompt.'],
+        [5.2, 'All the answers go up together for the last laugh of the game.'],
+        [8.0, 'Vote for up to 3 favourites (not your own).'],
+        [10.2, 'Every vote is worth triple points.'],
+      ],
+      cta: [12.6, 'Off you trot: go light some fuses.'],
+    },
+  };
   let intro = null;
   function showIntro(p) {
-    const key = `${p.introStartedAt}`;
+    const kind = INTROS[p.introKind] ? p.introKind : 'rules';
+    const def = INTROS[kind];
+    const key = `${kind}:${p.introStartedAt}`;
     $('intro-skip').hidden = !isHost();
     $('intro-overlay').classList.add('show');
     if (intro && intro.key === key) return;
     hideIntro();
     $('intro-overlay').classList.add('show');
+    $('intro-kicker').textContent = def.kicker;
+    $('intro-title').textContent = def.title;
+    const rules = typeof def.rules === 'function' ? def.rules(p) : def.rules;
     const elapsed = Math.max(0, (net.hostNow() - p.introStartedAt) / 1000);
     const total = Math.max(0.1, (p.introEndsAt - p.introStartedAt) / 1000);
-    $('intro-rules').innerHTML = INTRO_RULES.map(([at, text]) => `<li style="animation-delay:${Math.max(0, at - elapsed).toFixed(2)}s">${esc(text)}</li>`).join('');
-    $('intro-cta').textContent = INTRO_CTA[1];
-    $('intro-cta').style.animationDelay = `${Math.max(0, INTRO_CTA[0] - elapsed).toFixed(2)}s`;
+    $('intro-rules').innerHTML = rules.map(([at, text]) => `<li style="animation-delay:${Math.max(0, at - elapsed).toFixed(2)}s">${esc(text)}</li>`).join('');
+    $('intro-cta').textContent = def.cta[1];
+    $('intro-cta').style.animationDelay = `${Math.max(0, def.cta[0] - elapsed).toFixed(2)}s`;
     const bar = $('intro-progress');
     bar.style.transition = 'none';
     bar.style.width = `${Math.min(100, (elapsed / total) * 100)}%`;
@@ -851,7 +862,7 @@
     intro = { key, src: null, gain: null };
     const mine = intro;
     hush();
-    loadIntroVo().then((buf) => {
+    loadSample(def.sound).then((buf) => {
       const a = getAudioCtx();
       if (intro !== mine || !buf || !a) return;
       // Late joiners (and a slow decode) pick the voiceover up at the right point.
@@ -1537,7 +1548,7 @@
     setTimeout(() => box.replaceChildren(), 5600);
   }
 
-  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, introVo, samples, fuseHiss, get intro() { return intro; } };
+  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, samples, fuseHiss, get intro() { return intro; } };
 
   buildSlots();
   renderSlots();
