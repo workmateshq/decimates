@@ -137,7 +137,7 @@
     },
     // Slide whistle up: the prompt arrives.
     whistle() { tone(ac.currentTime, 'sine', 500, 1900, 0.45, 0.16, 0.02); },
-    // A springy boing: an answer appears.
+    // A springy boing: the Stock joke button.
     boing() {
       const t = ac.currentTime;
       const o = ac.createOscillator();
@@ -149,6 +149,23 @@
       o.stop(t + 0.5);
     },
     pop() { tone(ac.currentTime, 'sine', 900, 300, 0.08, 0.2, 0.002); },
+    // A goofy cartoon "bloop" when an answer appears: a quick upward pitch flick like a cork, with a soft click. Kept quiet.
+    bloop() {
+      const t = ac.currentTime;
+      const o = ac.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(260, t);
+      o.frequency.exponentialRampToValueAtTime(1100, t + 0.07);
+      o.frequency.exponentialRampToValueAtTime(700, t + 0.12);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.13, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g).connect(sfxGain);
+      o.start(t);
+      o.stop(t + 0.18);
+      noise(t, 0.012, 'bandpass', 3200, 0.05, 1.2);
+    },
     submit() {
       const t = ac.currentTime;
       [0, 4, 7, 12].forEach((s, i) => tone(t + i * 0.06, 'square', 523 * 2 ** (s / 12), 523 * 2 ** (s / 12), 0.09, 0.07));
@@ -1156,7 +1173,7 @@
       later((at - t) * 1000, () => {
         d.classList.add('in');
         if (at - t > -0.2) {
-          playSfx('boing');
+          playSfx('bloop');
         }
       });
     });
