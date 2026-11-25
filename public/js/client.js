@@ -598,9 +598,11 @@
   $('join-btn').addEventListener('click', () => {
     const code = $('room-input').value.trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(code)) return showError('Enter a 4-letter room code.');
+    // Like a room link: join the room if someone's hosting it (including its backup slots), otherwise open it
+    // and host it, so shared rooms like MATE always work.
     withName(() => {
       setConnecting(true);
-      net.emit('joinRoom', code, handleJoinResponse);
+      net.emit('enterRoom', code, handleJoinResponse);
     });
   });
   $('room-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('join-btn').click(); });
