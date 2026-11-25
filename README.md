@@ -23,7 +23,7 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 3. **Matchups**: the prompts come up one at a time.
    - The prompt appears big, then docks at the top of the screen.
    - The two answers fade in on bundles of dynamite. They're anonymous while voting.
-   - The announcer reads the prompt out (answers aren't read aloud).
+   - The announcer (your browser's speech) reads the prompt out. Answers aren't read aloud.
 4. **Voting (15 seconds)**: everyone except the two authors votes for their favourite. That means the other players plus the crowd. Voters' faces appear on the answer they picked.
 5. **The reveal**: the authors and the vote split are shown. The winner's fuse burns out and it goes off: a flash, a shockwave, sparks and bits of stick, then smoke that billows over the screen while the label flies from the bundle into the middle of the screen.
 6. **Scoreboard**: after every matchup, the scoreboard shows the round's points and running totals.
@@ -84,7 +84,7 @@ There is no game server. Decimates is peer-to-peer, so it runs on any static hos
 - **Connections**: players connect over WebRTC with [PeerJS](https://peerjs.com/) ([`public/js/net.js`](public/js/net.js)). For networks that can't connect directly, add a TURN relay in [`public/js/config.js`](public/js/config.js).
 - **Audio**: one `AudioContext` with a sound-effect gain and toggle (no background music yet).
   - The sound effects (whistle, boing, fuse hiss, boom) are synthesised in the browser.
-  - The announcer is pre-recorded with the [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model, voice `bm_daniel` (British male): every prompt, "Caption this comic" and the stinger lines, as MP3s in `public/sound/voice/`. [`public/js/voice.js`](public/js/voice.js) maps each line to its file. After adding or changing prompts, run `npm install --no-save kokoro-js` then `node scripts/make-voice.mjs` (it only records new lines; needs ffmpeg). The announcer follows the sound-effects toggle.
+  - The announcer uses `speechSynthesis` and follows the sound-effects toggle.
   - At the end of a matchup the host picks the stinger line, so everyone hears the same one.
 
 ### Files
@@ -96,8 +96,7 @@ public/
   css/              base.css, lobby.css, game.css, matchup.css, overlays.css (loaded in that order)
   js/               config.js, prompts.js, engine.js, net.js, client.js
   img/comics/       Buck Ryan strips for the comic final
-  sound/            the intro voiceover, and the announcer's lines (voice/)
-scripts/            make-voice.mjs: records the announcer's lines
+  sound/            the intro voiceover
 test/               node --test suite for the engine and prompts
 ```
 

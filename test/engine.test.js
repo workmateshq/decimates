@@ -394,17 +394,6 @@ test('the comic final: about 1 game in 3, everyone captions the same Buck Ryan s
   assert.ok(comics > 70 && comics < 130, `${comics} of 300 games`);
 });
 
-test('the announcer: one stinger line per stinger; once recorded, every line has its bm_daniel MP3', () => {
+test('the announcer has one stinger line per stinger', () => {
   assert.equal(Prompts.STINGER_LINES.length, STINGERS);
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const vm = require('node:vm');
-  const sandbox = { window: {} };
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/js/voice.js'), 'utf8'), sandbox);
-  const voice = sandbox.window.DECIMATES_VOICE;
-  if (!Object.keys(voice).length) return; // not recorded yet (node scripts/make-voice.mjs)
-  [...Prompts.PROMPTS, Prompts.COMIC_PROMPT, ...Prompts.STINGER_LINES].forEach((line) => {
-    assert.ok(voice[line], `no recording for "${line}" (run node scripts/make-voice.mjs)`);
-    assert.ok(fs.existsSync(path.join(__dirname, '../public', voice[line])), `missing file ${voice[line]}`);
-  });
 });
