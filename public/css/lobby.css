@@ -1,38 +1,39 @@
 /* Decimates: the lobby (player slots, crowd, room code). */
-.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
 .slot {
-  border: 3px dashed rgba(26, 18, 8, 0.3); border-radius: 14px; padding: 6px 4px 8px; min-height: 112px;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px;
-  color: var(--muted); background: rgba(255, 255, 255, 0.35); position: relative;
+  border-radius: 14px; padding: 10px 4px; min-height: 112px; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px;
+  color: var(--muted); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line);
+  transition: background 0.2s, box-shadow 0.2s;
 }
 .slot.filled {
-  border: 3px solid var(--ink); background: color-mix(in srgb, var(--pc) 22%, #fff); color: var(--ink);
-  box-shadow: 3px 3px 0 var(--ink); animation: pop-in 0.35s cubic-bezier(.3, 1.6, .5, 1);
+  color: var(--text); background: color-mix(in srgb, var(--pc) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 45%, transparent); animation: slot-in 0.4s var(--ease);
 }
-.slot .slot-num { font-family: var(--cartoon); font-size: 14px; color: var(--muted); letter-spacing: 1px; }
-.slot.filled .slot-num { color: var(--ink); }
-.slot .avatar { display: grid; place-items: center; height: 50px; }
-.slot .avatar .av { width: 42px; height: 42px; }
-.slot .slot-name { font-weight: 900; font-size: 15px; line-height: 1.1; text-align: center; padding: 0 2px; overflow-wrap: anywhere; }
-.slot .slot-tag { font-size: 11px; color: var(--red); font-weight: 900; min-height: 14px; }
-@keyframes pop-in { from { transform: scale(0.6) rotate(-6deg); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.slot .slot-num { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: 0.04em; }
+.slot .avatar { display: grid; place-items: center; height: 46px; }
+.slot .avatar .av { width: 40px; height: 40px; }
+.slot .slot-name { font-weight: 800; font-size: 14px; line-height: 1.15; text-align: center; padding: 0 4px; overflow-wrap: anywhere; }
+.slot .slot-tag { font-size: 11px; color: var(--gold); font-weight: 800; min-height: 14px; }
+@keyframes slot-in { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pop-in { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
 .crowd { font-size: 14px; color: var(--muted); margin: -4px 0 8px; }
-.crowd b { color: var(--ink); }
-.crowd .chip { display: inline-block; background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 1px 9px; margin: 2px; font-size: 12px; color: var(--ink); }
-.crowd .chip.you { background: var(--mustard); }
-.rules-line { font-size: 15px; color: var(--ink); margin-bottom: 2px; }
-.rules-line b { font-family: var(--cartoon); font-weight: 400; color: var(--red); letter-spacing: 1px; }
-.room-label { margin-top: 18px; font-size: 13px; color: var(--muted); }
-.room-display { font-family: var(--cartoon); font-size: 50px; letter-spacing: 14px; color: var(--red); margin: 2px 0 10px; text-shadow: 3px 3px 0 var(--ink); }
-.room-display.long { font-size: 26px; letter-spacing: 3px; }
+.crowd b { color: var(--text); }
+.crowd .chip { display: inline-block; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 999px; padding: 1px 9px; margin: 2px; font-size: 12px; color: var(--text); }
+.crowd .chip.you { background: var(--gold); color: var(--ink); box-shadow: none; }
+.rules-line { font-size: 15px; font-weight: 500; color: var(--muted); margin-bottom: 2px; }
+.rules-line b { color: var(--text); font-weight: 800; }
+.room-label { margin-top: 20px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.room-display { font-size: 46px; font-weight: 900; letter-spacing: 0.3em; text-indent: 0.3em; color: var(--text); margin: 0 0 12px; }
+.room-display.long { font-size: 26px; letter-spacing: 0.05em; text-indent: 0; }
 .share { display: flex; gap: 8px; align-items: stretch; }
-.share input[type="text"] { flex: 1; margin: 0; font-size: 13px; text-align: left; padding: 10px 12px; }
+.share input[type="text"] { flex: 1; margin: 0; font-size: 13px; font-weight: 500; text-align: left; padding: 10px 12px; }
 #lobby-card.link-room .room-details { display: none; }
 #lobby-card:not(.link-room) .link-only { display: none; }
-.wait-msg { margin-top: 14px; color: var(--muted); }
+.wait-msg { margin-top: 14px; color: var(--muted); font-weight: 500; }
 
 @media (max-width: 640px) {
   .slots { gap: 6px; }
   .slot { min-height: 100px; }
-  .slot .slot-name { font-size: 13px; }
+  .slot .slot-name { font-size: 12px; }
 }

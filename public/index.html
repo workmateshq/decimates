@@ -7,7 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%A8%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Lilita+One&family=Luckiest+Guy&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/base.css?v=__BUILD__">
   <link rel="stylesheet" href="css/lobby.css?v=__BUILD__">
   <link rel="stylesheet" href="css/game.css?v=__BUILD__">
@@ -15,22 +15,9 @@
   <link rel="stylesheet" href="css/overlays.css?v=__BUILD__">
 </head>
 <body>
+  <div class="hypno" aria-hidden="true"><svg viewBox="-1700 -1700 3400 3400"><path id="hypno-path" fill="none" stroke="currentColor"/></svg></div>
   <header>
-    <h1 id="logo" aria-label="Decimates">
-      <svg class="logo-svg" viewBox="0 0 520 170" aria-hidden="true">
-        <defs>
-          <path id="logo-arc" d="M40 132 Q260 40 480 132"/>
-        </defs>
-        <g class="logo-stick" transform="translate(236 4) rotate(12)">
-          <path d="M22 18 q8 -18 26 -14" fill="none" stroke="#1a1208" stroke-width="4" stroke-linecap="round"/>
-          <circle class="logo-spark" cx="50" cy="4" r="6" fill="#ffd23f"/>
-          <rect x="6" y="16" width="28" height="56" rx="9" fill="#e0301e" stroke="#1a1208" stroke-width="4"/>
-          <rect x="12" y="20" width="6" height="48" rx="3" fill="#ff7a5c"/>
-        </g>
-        <text class="logo-shadow" dy="2"><textPath href="#logo-arc" startOffset="50%" text-anchor="middle">DECIMATES</textPath></text>
-        <text class="logo-text"><textPath href="#logo-arc" startOffset="50%" text-anchor="middle">DECIMATES</textPath></text>
-      </svg>
-    </h1>
+    <h1 id="logo" aria-label="Decimates"><span class="logo-mark" id="logo-mark" aria-hidden="true"></span><span class="logo-word" aria-hidden="true">Decimates</span></h1>
     <p class="subtitle">Write the funniest answer. Win the vote. Blow up the competition.</p>
   </header>
 
@@ -57,7 +44,7 @@
     <p class="hint" id="connecting-hint" style="display:none;">Connecting...</p>
 
     <div id="room-view" style="display:none;">
-      <p class="rules-line">3 to 8 players write jokes, then go head to head. Everyone else votes, and the winning joke goes <b>KA-BOOM</b>.</p>
+      <p class="rules-line">Practise solo or play with up to 8 mates. Write jokes, go head to head, and the room votes. The winning joke <b>goes off</b>.</p>
       <button class="btn" id="start-btn">Start game</button>
       <button class="btn yellow" id="rejoin-btn" style="display:none;">Back to the show</button>
       <p class="wait-msg" id="wait-msg"></p>
@@ -85,9 +72,6 @@
       <button type="button" class="icon-btn" id="game-home" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h5v-6h3v6h5V9.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <div class="hud-centre" id="chips"></div>
       <div class="hud-right">
-        <button type="button" class="icon-btn" id="music-toggle" aria-pressed="true" aria-label="Music" title="Music on/off">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="17.5" cy="16" r="2.5" fill="currentColor"/><path class="off-slash" d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-        </button>
         <button type="button" class="icon-btn" id="sfx-toggle" aria-pressed="true" aria-label="Sound effects and voice" title="Sound effects on/off">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="on-waves" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="off-slash" d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
         </button>
@@ -133,14 +117,8 @@
       </div>
     </div>
 
-    <div class="boom" id="boom" aria-hidden="true">
-      <div class="boom-flash"></div>
-      <svg class="boom-burst" viewBox="-100 -100 200 200"><polygon points="0,-96 18,-40 70,-70 40,-18 96,-8 42,12 78,62 22,38 6,96 -14,40 -66,76 -40,18 -96,10 -42,-12 -74,-60 -20,-36"/><polygon class="inner" points="0,-62 12,-26 46,-44 26,-10 62,-4 26,10 50,40 12,24 2,62 -10,26 -42,48 -26,10 -62,4 -26,-8 -48,-38 -12,-24"/></svg>
-      <div class="boom-word" id="boom-word">KA-BOOM!</div>
-      <div class="smoke" id="smoke"></div>
-    </div>
+    <div class="fx" id="fx" aria-hidden="true"></div>
     <div class="flyer" id="flyer" aria-live="polite"></div>
-    <div class="sweep" id="sweep" aria-live="polite"><span>Clean sweep!</span></div>
 
     <div class="overlay intro-overlay" id="intro-overlay">
       <div class="card intro-card">

@@ -4,8 +4,8 @@
   const Prompts = window.DecimatesPrompts;
   const PARAMS = new URLSearchParams(location.search);
   const DEBUG = PARAMS.has('debug');
-  // ?debug&write=N shortens the write timer; ?debug&nointro skips the intro; ?debug&min=1 starts with fewer
-  // than 3 players; ?debug&comic=1 (or 0) forces (or rules out) the comic final.
+  // ?debug&write=N shortens the write timer; ?debug&nointro skips the intro; ?debug&min=N needs N players
+  // to start; ?debug&comic=1 (or 0) forces (or rules out) the comic final.
   const DEBUG_WRITE = DEBUG && PARAMS.has('write') ? Number(PARAMS.get('write')) || undefined : undefined;
   const startOptions = () => {
     const o = {};
@@ -33,13 +33,12 @@
   };
 
   // ---------- Sound ----------
-  // One AudioContext: the music bed through the music gain, effects (and the announcer) through the sfx gain.
+  // One AudioContext: sound effects through the sfx gain (no music for now).
   let ac = null;
   let sfxGain = null;
-  let musicGain = null;
   const soundPrefs = (() => {
     const read = (k) => { try { return localStorage.getItem(`decimates-${k}`) !== 'off'; } catch { return true; } };
-    return { music: read('music'), sfx: read('sfx') };
+    return { sfx: read('sfx') };
   })();
 
   function getAudioCtx() {
@@ -52,9 +51,7 @@
       comp.ratio.value = 4;
       comp.connect(ac.destination);
       sfxGain = ac.createGain();
-      musicGain = ac.createGain();
       sfxGain.connect(comp);
-      musicGain.connect(comp);
       applySoundPrefs();
     }
     if (ac.state === 'suspended') ac.resume().catch(() => {});
@@ -211,67 +208,6 @@
     };
   }
 
-  // ---------- Music bed: a bouncy old-cartoon oom-pah, synthesised and looped on the audio clock ----------
-  const MUSIC_BPM = 132;
-  // 8 bars: bass roots (oom on beats 1 and 3, pah chords on 2 and 4) and a plucky tune in eighths (0 = rest).
-  const PROG = [[48, [55, 60, 64]], [43, [55, 59, 62]], [48, [55, 60, 64]], [45, [57, 60, 64]],
-    [41, [57, 60, 65]], [43, [55, 59, 62]], [48, [55, 60, 64]], [43, [55, 59, 62]]];
-  const TUNE = [72, 0, 76, 79, 76, 0, 72, 0, 71, 0, 74, 77, 74, 0, 71, 0, 72, 0, 76, 79, 81, 79, 76, 72,
-    77, 0, 76, 74, 72, 0, 69, 0, 69, 0, 72, 77, 76, 0, 72, 0, 71, 72, 74, 76, 74, 0, 67, 0, 72, 74, 76, 79,
-    76, 72, 76, 79, 74, 0, 71, 0, 67, 0, 0, 0];
-  const midi = (n) => 440 * 2 ** ((n - 69) / 12);
-  const music = { on: false, timer: null, next: 0, step: 0, gain: null };
-  function startMusic(level = 0.5) {
-    const a = getAudioCtx();
-    if (!a) return;
-    if (!music.gain) {
-      music.gain = a.createGain();
-      music.gain.connect(musicGain);
-    }
-    music.gain.gain.cancelScheduledValues(a.currentTime);
-    music.gain.gain.setTargetAtTime(level, a.currentTime, 0.3);
-    if (music.on) return;
-    music.on = true;
-    music.next = a.currentTime + 0.1;
-    const eighth = 60 / MUSIC_BPM / 2;
-    const schedule = () => {
-      if (!music.on || a.state !== 'running') return;
-      while (music.next < a.currentTime + 0.25) {
-        const s = music.step % 64;
-        const bar = Math.floor(s / 8);
-        const inBar = s % 8;
-        const t = music.next;
-        const [root, chord] = PROG[bar];
-        if (inBar === 0 || inBar === 4) tone(t, 'triangle', midi(root - 12 + (inBar === 4 ? 7 : 0)), midi(root - 12 + (inBar === 4 ? 7 : 0)), 0.18, 0.28, 0.005, music.gain);
-        if (inBar === 2 || inBar === 6) {
-          chord.forEach((n) => tone(t, 'square', midi(n), midi(n), 0.07, 0.025, 0.003, music.gain));
-          const brush = noiseSource();
-          const f = a.createBiquadFilter();
-          f.type = 'highpass';
-          f.frequency.value = 6000;
-          brush.connect(f).connect(env(t, 0.03, 0.002, 0.08, music.gain));
-          brush.start(t, Math.random());
-          brush.stop(t + 0.12);
-        }
-        const note = TUNE[s];
-        if (note) tone(t, 'triangle', midi(note), midi(note), eighth * 0.8, 0.09, 0.004, music.gain);
-        music.next += eighth;
-        music.step += 1;
-      }
-    };
-    schedule();
-    music.timer = setInterval(schedule, 60);
-  }
-  function setMusicLevel(level) {
-    if (music.gain && ac) music.gain.gain.setTargetAtTime(level, ac.currentTime, 0.4);
-  }
-  function stopMusic() {
-    if (!music.on) return;
-    music.on = false;
-    clearInterval(music.timer);
-    if (music.gain && ac) music.gain.gain.setTargetAtTime(0.0001, ac.currentTime, 0.2);
-  }
-
   // ---------- The announcer (speechSynthesis): reads prompts and answers, and the stinger after a reveal ----------
   let voices = [];
   const loadVoices = () => { if (window.speechSynthesis) voices = window.speechSynthesis.getVoices() || []; };
@@ -309,19 +245,18 @@
   const STINGERS = ['Ka-boom!', 'What a blast!', 'That one went off with a bang!', 'Somebody call the fire brigade!',
     "Now that's dynamite!", 'Boom goes the punchline!', 'Explosive stuff, folks!', 'Kaboom! Sweep up the pieces!'];
 
-  // ---------- Music and sound effects on/off ----------
+  // ---------- Sound effects on/off ----------
   function applySoundPrefs() {
     if (sfxGain) sfxGain.gain.value = soundPrefs.sfx ? 0.8 : 0;
-    if (musicGain) musicGain.gain.value = soundPrefs.music ? 1 : 0;
     if (!soundPrefs.sfx) hush();
-    [['music-toggle', soundPrefs.music, 'Music'], ['sfx-toggle', soundPrefs.sfx, 'Sound effects and voice']].forEach(([id, on, label]) => {
+    [['sfx-toggle', soundPrefs.sfx, 'Sound effects and voice']].forEach(([id, on, label]) => {
       const btn = $(id);
       btn.setAttribute('aria-pressed', String(on));
       btn.classList.toggle('off', !on);
       btn.title = `${label} ${on ? 'on' : 'off'} (click to turn ${on ? 'off' : 'on'})`;
     });
   }
-  [['music-toggle', 'music'], ['sfx-toggle', 'sfx']].forEach(([id, key]) => {
+  [['sfx-toggle', 'sfx']].forEach(([id, key]) => {
     $(id).addEventListener('click', (e) => {
       soundPrefs[key] = !soundPrefs[key];
       try { localStorage.setItem(`decimates-${key}`, soundPrefs[key] ? 'on' : 'off'); } catch { /* private mode */ }
@@ -343,18 +278,87 @@
     el.classList.add(cls);
   }
 
-  // A cartoon bundle of dynamite with a fuse; the joke goes on a label across it.
-  let dynId = 0;
+  // A bundle of dynamite: four sticks seen from the fuse end, tied with two loops of rope, and a fuse with a
+  // spark. The joke's label sits between the sticks and the ropes (dynamiteRopes is drawn over it).
+  const INK = '#1d1410';
+  const DYN_STICKS = [[128, 64, 388], [134, 170, 392], [100, 114, 374], [150, 126, 396]]; // [left end x, centre y, right end x]
+  const DYN_FUSE = 'M16 62 C 30 46, 46 84, 62 92 S 88 110, 101 114';
+  function dynStick([x0, cy, x1], r = 30, e = 13) {
+    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#d9402c" stroke="${INK}" stroke-width="3"/>
+      <path d="M${x0 + 20} ${cy + r * 0.62}H${x1 - 2}" stroke="#ad2c1c" stroke-width="10" stroke-linecap="round"/>
+      <path d="M${x0 + 22} ${cy - r * 0.52}H${x1 - 6}" stroke="#ee7058" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+      <ellipse cx="${x0}" cy="${cy}" rx="${e}" ry="${r}" fill="#c63823" stroke="${INK}" stroke-width="3"/>
+      <ellipse cx="${x0 + 2}" cy="${cy}" rx="${e - 5}" ry="${r - 8}" fill="#8a2215" stroke="${INK}" stroke-width="1.6"/>`;
+  }
   function dynamiteSvg() {
-    const id = `dy${++dynId}`;
-    return `<svg class="dyn-svg" viewBox="0 0 200 120" aria-hidden="true">
-      <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff6b4a"/><stop offset=".45" stop-color="#e0301e"/><stop offset="1" stop-color="#9c1a10"/></linearGradient></defs>
-      <path class="fuse" d="M100 26 C 104 12, 124 8, 128 -6 S 146 -22, 154 -30" fill="none" stroke="#1a1208" stroke-width="4" stroke-linecap="round"/>
-      <g class="spark"><circle r="9" fill="#ffd23f"/><circle r="5" fill="#fff6c4"/><path d="M-14 0H14M0 -14V14M-10 -10L10 10M-10 10L10 -10" stroke="#ff8a1f" stroke-width="3" stroke-linecap="round"/></g>
-      ${[0, 1, 2].map((i) => `<rect x="${16 + i * 58}" y="24" width="52" height="92" rx="14" fill="url(#${id})" stroke="#1a1208" stroke-width="5"/><rect x="${26 + i * 58}" y="32" width="9" height="74" rx="4.5" fill="rgba(255,255,255,.35)"/>`).join('')}
-      <rect x="10" y="60" width="180" height="16" rx="3" fill="#2b1d0e" stroke="#1a1208" stroke-width="3"/>
+    const sparks = Array.from({ length: 9 }, (_, i) => {
+      const t = (i / 9) * Math.PI * 2 + 0.3;
+      const [r0, r1] = i % 2 ? [17, 21] : [19, 26];
+      return `<path d="M${(Math.cos(t) * r0).toFixed(1)} ${(Math.sin(t) * r0).toFixed(1)}L${(Math.cos(t) * r1).toFixed(1)} ${(Math.sin(t) * r1).toFixed(1)}"/>`;
+    }).join('');
+    const star = (ro, ri, n = 8) => Array.from({ length: n * 2 }, (_, i) => {
+      const t = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2;
+      const rr = i % 2 ? ri : ro;
+      return `${(Math.cos(t) * rr).toFixed(1)},${(Math.sin(t) * rr).toFixed(1)}`;
+    }).join(' ');
+    return `<svg class="dyn-svg" viewBox="0 0 420 220" aria-hidden="true">
+      ${DYN_STICKS.map((st) => dynStick(st)).join('')}
+      <path class="fuse" d="${DYN_FUSE}" fill="none" stroke="${INK}" stroke-width="7.5" stroke-linecap="round"/>
+      <path class="fuse" d="${DYN_FUSE}" fill="none" stroke="#c9a46b" stroke-width="4.5" stroke-linecap="round"/>
+      <g class="spark" transform="translate(16 62)">
+        <g class="spark-bits" stroke="#f39a1e" stroke-width="2.4" stroke-linecap="round">${sparks}</g>
+        <polygon class="spark-star" points="${star(15, 6)}" fill="#f07a1a" stroke="#d65a10" stroke-width="1.2" stroke-linejoin="round"/>
+        <polygon class="spark-star" points="${star(8, 3.5)}" fill="#ffd23f"/>
+      </g>
     </svg>`;
   }
+  // The two loops of rope, over the label.
+  function dynamiteRopes() {
+    const rope = (x) => [0, 7].map((o) => {
+      const d = `M${x + o} 30C${x + o + 10} 70, ${x + o + 10} 168, ${x + o} 208`;
+      return `<path d="${d}" stroke="${INK}" stroke-width="7"/><path d="${d}" stroke="#cfa86a" stroke-width="4.6"/><path d="${d}" stroke="#9a7442" stroke-width="4.6" stroke-dasharray="2.4 4.2"/>`;
+    }).join('');
+    return `<svg class="dyn-ropes" viewBox="0 0 420 220" aria-hidden="true" fill="none" stroke-linecap="round">${rope(184)}${rope(344)}</svg>`;
+  }
+  // How far the fuse has burnt (0 to 1): the spark rides the end of what's left.
+  function setFuse(d, progress) {
+    const paths = d.querySelectorAll('.fuse');
+    const spark = d.querySelector('.spark');
+    if (!paths.length || !spark) return;
+    const len = d.fuseLen || (d.fuseLen = paths[0].getTotalLength());
+    const p = Math.max(0, Math.min(1, progress));
+    paths.forEach((f) => {
+      f.style.strokeDasharray = `${len} ${len}`;
+      f.style.strokeDashoffset = `${-p * len}`;
+    });
+    const pt = paths[0].getPointAtLength(p * len);
+    spark.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
+    d.fuseAt = p;
+  }
+  // Burn the rest of the fuse quickly (just before it goes off).
+  function burnOut(d, ms = 420) {
+    const from = d.fuseAt || 0;
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      setFuse(d, from + (1 - from) * k);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // The background: a slow hypnotic spiral.
+  (function drawSpiral() {
+    const path = $('hypno-path');
+    if (!path) return;
+    const a = 24;
+    let d = '';
+    for (let t = 0; t <= 68; t += 0.05) d += `${t ? 'L' : 'M'}${(a * t * Math.cos(t)).toFixed(1)} ${(a * t * Math.sin(t)).toFixed(1)}`;
+    path.setAttribute('d', d);
+    path.setAttribute('stroke-width', (Math.PI * a).toFixed(1));
+  })();
+  // The logo's little bundle.
+  if ($('logo-mark')) $('logo-mark').innerHTML = `<span class="dyn-art lit">${dynamiteSvg()}${dynamiteRopes()}</span>`;
 
   // ---------- Lobby ----------
 
@@ -410,7 +414,7 @@
     const count = state.lobby.players.length;
     const host = everyone().find((m) => m.id === state.hostId);
     const enough = count >= MIN_PLAYERS;
-    $('start-btn').textContent = enough ? `Start with ${count} players` : `Need ${MIN_PLAYERS - count} more player${MIN_PLAYERS - count === 1 ? '' : 's'}`;
+    $('start-btn').textContent = !enough ? `Need ${MIN_PLAYERS - count} more player${MIN_PLAYERS - count === 1 ? '' : 's'}` : count === 1 ? 'Start solo' : `Start with ${count} players`;
     $('start-btn').disabled = !enough;
     $('start-btn').style.display = isHost() && !state.lobby.started ? 'block' : 'none';
     $('rejoin-btn').style.display = state.lobby.started && state.away ? 'block' : 'none';
@@ -428,7 +432,6 @@
 
   function showLobby() {
     clearGameScreens();
-    stopMusic();
     hush();
     $('game-view').style.display = 'none';
     $('lobby-card').style.display = 'block';
@@ -704,27 +707,23 @@
       hideMatchup();
       hideOverlays();
       showIntro(p);
-      startMusic(0.35);
       return;
     }
     hideIntro();
     if (p.phase === 'write') {
       hideMatchup();
       hideOverlays();
-      startMusic(0.3);
       showWrite(p);
       return;
     }
     hideWrite();
     if (p.phase === 'matchup') {
       hideOverlays();
-      setMusicLevel(0.12);
       showMatchup(p, prev, force);
       return;
     }
     if (p.phase === 'standings') {
       hideMatchup();
-      startMusic(0.4);
       showStandings(p);
     }
   }
@@ -751,7 +750,7 @@
     }
   }
 
-  // ---------- Intro: how to play, read out by the announcer over the music ----------
+  // ---------- Intro: how to play, read out by the announcer ----------
   // `at` is when each rule appears (seconds into the intro).
   const INTRO_RULES = [
     [0.8, 'Each round you get 2 prompts. Write the funniest answer you can.'],
@@ -961,9 +960,9 @@
     mu.key = null;
     mu.step = null;
     $('matchup-view').hidden = true;
-    $('boom').classList.remove('go');
-    $('flyer').classList.remove('show', 'fly');
-    $('sweep').classList.remove('show');
+    $('matchup-view').classList.remove('flying');
+    clearFx();
+    $('flyer').classList.remove('show');
   }
   const later = (ms, fn) => { mu.timers.push(setTimeout(fn, Math.max(0, ms))); };
 
@@ -976,9 +975,9 @@
     if (fresh) {
       clearMuTimers();
       // The last matchup's explosion, winner card and banner go before the next one starts.
-      $('boom').classList.remove('go');
-      $('flyer').classList.remove('show', 'fly', 'settled');
-      $('sweep').classList.remove('show');
+      clearFx();
+      $('flyer').classList.remove('show');
+      $('matchup-view').classList.remove('flying');
       mu.key = key;
       mu.step = null;
       mu.picks = new Set();
@@ -1006,14 +1005,15 @@
     const box = $('mu-answers');
     box.classList.toggle('final', !!m.final);
     box.classList.toggle('many', m.answers.length > 4);
+    box.classList.toggle('single', m.answers.length === 1);
     box.replaceChildren(...m.answers.map((a, i) => {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'dyn';
       el.dataset.i = i;
       el.disabled = true;
-      el.innerHTML = `${dynamiteSvg()}
-        <span class="dyn-label${a.empty ? ' empty' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>
+      el.innerHTML = `<span class="dyn-art">${dynamiteSvg()}
+        <span class="dyn-label${a.empty ? ' empty' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>${dynamiteRopes()}</span>
         <span class="dyn-letter">${m.final ? i + 1 : 'AB'[i]}</span>
         <span class="dyn-voters"></span>
         <span class="dyn-author"></span>
@@ -1034,7 +1034,10 @@
   function runShow(m, fresh) {
     const t = stepElapsed(m);
     const dyns = [...document.querySelectorAll('#mu-answers .dyn')];
-    dyns.forEach((d) => d.classList.remove('in', 'lit', 'boom', 'dud', 'win', 'picked', 'mine'));
+    dyns.forEach((d) => {
+      d.classList.remove('in', 'lit', 'boom', 'dud', 'win', 'picked', 'mine');
+      setFuse(d, 0);
+    });
     const prompt = $('mu-prompt');
     prompt.classList.remove('docked', 'pop');
     if (t < 0.2) {
@@ -1044,7 +1047,7 @@
     }
     later((1.8 - t) * 1000, () => prompt.classList.add('docked'));
     // Answers land one after another (all together in a big final).
-    const gap = m.final ? Math.min(0.6, 3.4 / dyns.length) : 1.4;
+    const gap = m.final ? Math.min(0.45, 3.4 / dyns.length) : 1.2;
     dyns.forEach((d, i) => {
       const at = 2.2 + i * gap;
       later((at - t) * 1000, () => {
@@ -1081,14 +1084,6 @@
     $('mu-cast').hidden = !(m.final && voting);
     $('mu-cast').disabled = true;
     const secs = Math.max(0.5, (m.stepEndsAt - net.hostNow()) / 1000);
-    document.querySelectorAll('#mu-answers .fuse').forEach((f) => {
-      f.style.animationDuration = `${secs}s`;
-      replay(f, 'burn');
-    });
-    document.querySelectorAll('#mu-answers .spark').forEach((s) => {
-      s.style.animationDuration = `${secs}s, 0.12s`;
-      replay(s, 'burn');
-    });
     if (mu.stopHiss) mu.stopHiss();
     mu.stopHiss = fuseHiss(secs);
     hush();
@@ -1113,7 +1108,7 @@
       d.classList.toggle('picked', j === i);
       d.disabled = true;
     });
-    $('mu-help').textContent = 'Vote in! Watch the fuses...';
+    $('mu-help').textContent = 'Vote in. Watch the fuses...';
     playSfx('pop');
   }
   $('mu-cast').addEventListener('click', () => {
@@ -1123,7 +1118,7 @@
     net.emit('input', { type: 'vote', matchup: m.index, choices: [...mu.picks] });
     document.querySelectorAll('#mu-answers .dyn').forEach((d) => { d.disabled = true; });
     $('mu-cast').hidden = true;
-    $('mu-help').textContent = 'Votes in! Watch the fuses...';
+    $('mu-help').textContent = 'Votes in. Watch the fuses...';
     playSfx('submit');
   });
 
@@ -1147,9 +1142,12 @@
   function startTimerBar(m, running) {
     cancelAnimationFrame(mu.timerRaf);
     const bar = $('mu-timer-bar');
+    const dyns = running ? [...document.querySelectorAll('#mu-answers .dyn')] : [];
     const frame = () => {
       const left = Math.max(0, Math.min(1, (m.stepEndsAt - net.hostNow()) / m.stepMs));
       bar.style.transform = `scaleX(${running ? left : 1})`;
+      // The fuses burn down with the vote clock (the last bit goes at the reveal).
+      dyns.forEach((d) => setFuse(d, (1 - left) * 0.9));
       bar.parentElement.classList.toggle('low', running && left < 0.3);
       if (running && left > 0) mu.timerRaf = requestAnimationFrame(frame);
     };
@@ -1162,7 +1160,7 @@
     $('mu-timer-bar').style.transform = 'scaleX(0)';
     $('mu-prompt').classList.add('docked');
     $('mu-cast').hidden = true;
-    $('mu-help').textContent = '';
+    $('mu-help').textContent = m.practice ? 'Practice round: nobody else to vote, so no points. Invite some mates!' : '';
     $('mu-voted').textContent = '';
     $('mu-answers').classList.remove('voting');
     $('mu-answers').classList.add('revealed');
@@ -1172,11 +1170,13 @@
       const a = m.answers[i];
       d.disabled = true;
       d.classList.add('in');
-      d.classList.remove('lit');
       d.querySelector('.dyn-author').innerHTML = a.author ? `${avatarImg(a.author.name, '', a.author.color)}<span>${esc(nameOf(a.author))}</span>` : '';
-      d.querySelector('.dyn-points').textContent = a.points ? `+${a.points}` : '+0';
+      d.querySelector('.dyn-points').textContent = m.practice ? '' : `+${a.points || 0}`;
       d.classList.toggle('win', !!a.winner);
-      if (!a.winner) d.classList.add('dud');
+      if (!a.winner) {
+        d.classList.remove('lit');
+        d.classList.add('dud');
+      }
     });
     const winners = m.answers.map((a, i) => (a.winner ? i : -1)).filter((i) => i >= 0);
     if (!winners.length) {
@@ -1184,65 +1184,168 @@
       if (t < 0.5) playSfx('fizzle');
       return;
     }
-    if (t > 3) {
+    if (t > 2) {
       // Joined late: skip straight to the result.
+      winners.forEach((i) => dyns[i].classList.add('boom'));
       showFlyer(m, winners);
-      $('flyer').classList.add('show', 'settled');
-      if (m.cleanSweep) $('sweep').classList.add('show');
       return;
     }
-    later(400, () => {
-      winners.forEach((i) => dyns[i].classList.add('boom'));
-      explode(m);
-      if (winners.length < m.answers.length) playSfx('fizzle');
+    // The winning fuses burn the last bit, then they go off and the labels fly out of the smoke.
+    winners.forEach((i) => {
+      dyns[i].classList.add('lit');
+      burnOut(dyns[i]);
     });
-    later(1100, () => showFlyer(m, winners));
-    later(2400, () => say(STINGERS[(m.stinger - 1) % STINGERS.length] || STINGERS[0], { rate: 1.05, pitch: 1.2, cancel: true }));
+    if (winners.length < m.answers.length) playSfx('fizzle');
+    later(480 - t * 1000, () => {
+      const labels = winners.map((i) => dyns[i].querySelector('.dyn-label'));
+      const from = labels.map((l) => l.getBoundingClientRect());
+      const arts = winners.map((i) => dyns[i].querySelector('.dyn-art').getBoundingClientRect());
+      winners.forEach((i) => dyns[i].classList.add('boom'));
+      explode(arts);
+      showFlyer(m, winners, from);
+    });
+    later(2400 - t * 1000, () => say(STINGERS[(m.stinger - 1) % STINGERS.length] || STINGERS[0], { rate: 1.05, pitch: 1.1, cancel: true }));
     if (m.cleanSweep) {
-      later(2900, () => {
-        $('sweep').classList.add('show');
+      later(1500 - t * 1000, () => {
         playSfx('win');
-        confetti(['💥', '🧨', '⭐', '🔥']);
+        confetti();
       });
     }
   }
 
-  // KA-BOOM: flash, a cartoon burst and smoke puffs that billow out over the whole screen, then clear.
-  function explode() {
-    const boom = $('boom');
-    const smoke = $('smoke');
-    if (reduceMotion()) {
-      playSfx('boom');
-      return;
-    }
-    const puffs = window.innerWidth < 640 ? 18 : 30;
-    smoke.innerHTML = Array.from({ length: puffs }, (_, i) => {
-      const angle = (i / puffs) * Math.PI * 2 + Math.random() * 0.4;
-      const dist = 30 + Math.random() * 70;
-      const size = 18 + Math.random() * 26;
-      return `<i style="--dx:${(Math.cos(angle) * dist).toFixed(1)}vmax;--dy:${(Math.sin(angle) * dist * 0.8).toFixed(1)}vmax;--s:${size.toFixed(0)}vmin;animation-delay:${(Math.random() * 0.25).toFixed(2)}s"></i>`;
-    }).join('');
-    boom.classList.remove('go');
-    void boom.offsetWidth;
-    boom.classList.add('go');
-    replay(document.body, 'shake');
+  // ---------- The explosion ----------
+  // From each winning bundle: a flash, a shockwave, sparks and bits of stick and paper, then soft smoke that
+  // billows out over the screen and clears. Positions are worked out against the fx layer so page zoom
+  // doesn't throw them off.
+  let fxTimer = null;
+  function clearFx() {
+    clearTimeout(fxTimer);
+    $('fx').replaceChildren();
+  }
+  const rand = (a, b) => a + Math.random() * (b - a);
+  function explode(rects) {
     playSfx('boom');
+    if (reduceMotion()) return;
+    const fx = $('fx');
+    clearFx();
+    const box = fx.getBoundingClientRect();
+    const k = fx.offsetWidth / (box.width || 1);
+    const W = fx.offsetWidth;
+    const H = fx.offsetHeight;
+    const reach = Math.hypot(W, H);
+    const add = (cls, x, y, size, frames, opts) => {
+      const el = document.createElement('i');
+      el.className = cls;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      if (size) {
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+      }
+      fx.append(el);
+      el.animate(frames, { fill: 'both', ...opts });
+      return el;
+    };
+    const smokeCount = Math.round((W < 640 ? 14 : 22) / Math.max(1, rects.length * 0.7));
+    rects.forEach((r) => {
+      const x = (r.left + r.width / 2 - box.left) * k;
+      const y = (r.top + r.height / 2 - box.top) * k;
+      const s = r.width * k;
+      add('fx-flash', x, y, s * 1.5, [
+        { transform: 'translate(-50%,-50%) scale(.15)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 0.95, offset: 0.25 },
+        { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 0 },
+      ], { duration: 650, easing: 'cubic-bezier(.2,.7,.3,1)' });
+      add('fx-ring', x, y, s * 0.6, [
+        { transform: 'translate(-50%,-50%) scale(.2)', opacity: 0.9 },
+        { transform: 'translate(-50%,-50%) scale(4.5)', opacity: 0 },
+      ], { duration: 900, easing: 'cubic-bezier(.1,.8,.2,1)' });
+      for (let i = 0; i < 5; i++) {
+        const a = rand(0, Math.PI * 2);
+        const d = rand(0, s * 0.25);
+        add('fx-fire', x + Math.cos(a) * d, y + Math.sin(a) * d, s * rand(0.35, 0.6), [
+          { transform: 'translate(-50%,-50%) scale(.1)', opacity: 1 },
+          { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.35 },
+          { transform: `translate(-50%,-50%) translateY(${-rand(20, 60)}px) scale(1.3)`, opacity: 0 },
+        ], { duration: rand(700, 1000), delay: rand(0, 120), easing: 'cubic-bezier(.2,.8,.3,1)' });
+      }
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2 + rand(-0.15, 0.15);
+        const d = rand(s * 0.6, s * 1.4);
+        add('fx-spark', x, y, 0, [
+          { transform: `translate(-50%,-50%) rotate(${a}rad) translateX(${s * 0.1}px) scaleX(.4)`, opacity: 1 },
+          { transform: `translate(-50%,-50%) rotate(${a}rad) translateX(${d}px) scaleX(1)`, opacity: 0 },
+        ], { duration: rand(450, 750), easing: 'cubic-bezier(.1,.7,.3,1)' });
+      }
+      for (let i = 0; i < 12; i++) {
+        const a = rand(-Math.PI * 0.95, -Math.PI * 0.05);
+        const v = rand(s * 0.5, s * 1.3);
+        const dx = Math.cos(a) * v;
+        const dy = Math.sin(a) * v;
+        const spin = rand(-540, 540);
+        add(i % 3 ? 'fx-bit' : 'fx-bit paper', x, y, 0, [
+          { transform: 'translate(-50%,-50%) translate(0,0) rotate(0deg)', opacity: 1 },
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${spin / 2}deg)`, opacity: 1, offset: 0.45 },
+          { transform: `translate(-50%,-50%) translate(${dx * 1.5}px,${dy + H * 0.5}px) rotate(${spin}deg)`, opacity: 0 },
+        ], { duration: rand(1100, 1600), easing: 'cubic-bezier(.25,.6,.6,1)' });
+      }
+      for (let i = 0; i < smokeCount; i++) {
+        const a = (i / smokeCount) * Math.PI * 2 + rand(-0.3, 0.3);
+        const d = rand(0.18, 0.5) * reach;
+        const dx = Math.cos(a) * d;
+        const dy = Math.sin(a) * d * 0.8 - rand(20, 80);
+        add('fx-smoke', x, y, rand(0.22, 0.36) * reach, [
+          { transform: 'translate(-50%,-50%) translate(0,0) scale(.15)', opacity: 0 },
+          { transform: `translate(-50%,-50%) translate(${dx * 0.45}px,${dy * 0.45}px) scale(.85)`, opacity: 0.92, offset: 0.25 },
+          { transform: `translate(-50%,-50%) translate(${dx * 0.75}px,${dy * 0.75}px) scale(1.15)`, opacity: 0.75, offset: 0.6 },
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy - 40}px) scale(1.4)`, opacity: 0 },
+        ], { duration: rand(2600, 3400), delay: rand(60, 220), easing: 'cubic-bezier(.16,1,.3,1)' });
+      }
+    });
+    $('game-view').animate([
+      { transform: 'translate(0,0)' }, { transform: 'translate(-6px,3px)' }, { transform: 'translate(5px,-4px)' },
+      { transform: 'translate(-3px,2px)' }, { transform: 'translate(2px,-1px)' }, { transform: 'translate(0,0)' },
+    ], { duration: 420, easing: 'ease-out' });
+    fxTimer = setTimeout(clearFx, 4000);
   }
 
-  // The winning joke's label flies out of the smoke into the middle of the screen, with its author and points.
-  function showFlyer(m, winners) {
+  // The winning label flies from the bundle, through the smoke, to the middle of the screen; then who wrote
+  // it and the points. from: where each label was on its bundle (screen rects), to animate from.
+  function showFlyer(m, winners, from) {
     const flyer = $('flyer');
     const cards = winners.map((i) => {
       const a = m.answers[i];
+      const pts = m.practice ? '' : ` <b>+${a.points || 0}</b>`;
       return `<div class="fly-card"><span class="dyn-label"><span class="dyn-text">${esc(a.text)}</span></span>
-        <span class="fly-by">${a.author ? `${avatarImg(a.author.name, '', a.author.color)}${esc(nameOf(a.author))}` : ''} <b>+${a.points || 0}</b></span></div>`;
+        <span class="fly-by">${a.author ? `${avatarImg(a.author.name, '', a.author.color)}${esc(nameOf(a.author))}` : ''}${pts}</span></div>`;
     }).join('');
-    const kicker = winners.length > 2 ? `It's a ${winners.length}-way tie! They all go BOOM` : winners.length > 1 ? "It's a tie! Both go BOOM" : 'Winner';
-    flyer.innerHTML = `<p class="fly-kicker">${kicker}</p>${cards}`;
-    flyer.classList.remove('show', 'fly', 'settled');
+    const kicker = m.practice ? 'Practice round'
+      : m.cleanSweep ? `Clean sweep! +${Engine.CLEAN_SWEEP_BONUS} bonus`
+        : winners.length > 2 ? `A ${winners.length}-way tie` : winners.length > 1 ? "It's a tie" : 'The winner';
+    flyer.innerHTML = `<p class="fly-kicker${m.cleanSweep ? ' sweep' : ''}">${kicker}</p>${cards}`;
     flyer.classList.toggle('multi', winners.length > 1);
+    flyer.classList.remove('show', 'animate');
+    $('matchup-view').classList.add('flying');
     void flyer.offsetWidth;
-    flyer.classList.add('show', 'fly');
+    flyer.classList.add('show');
+    if (!from || reduceMotion()) return;
+    flyer.classList.add('animate');
+    const box = flyer.getBoundingClientRect();
+    const k = flyer.offsetWidth / (box.width || 1);
+    flyer.querySelectorAll('.fly-card .dyn-label').forEach((lab, j) => {
+      const a = from[j];
+      if (!a) return;
+      const b = lab.getBoundingClientRect();
+      const dx = (a.left + a.width / 2 - (b.left + b.width / 2)) * k;
+      const dy = (a.top + a.height / 2 - (b.top + b.height / 2)) * k;
+      const sc = a.width / (b.width || 1);
+      lab.animate([
+        { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(-2deg)` },
+        { transform: `translate(${dx * 0.35}px,${dy * 0.35 - 40}px) scale(${(sc + 1.1) / 2}) rotate(4deg)`, offset: 0.4 },
+        { transform: 'translate(0,-8px) scale(1.04) rotate(-2.5deg)', offset: 0.8 },
+        { transform: 'translate(0,0) scale(1) rotate(-1.5deg)' },
+      ], { duration: 1100, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'backwards' });
+    });
   }
 
   // ---------- Scoreboard ----------
@@ -1299,9 +1402,8 @@
   }
   function showResults({ standings, winnerIds }) {
     clearGameScreens();
-    startMusic(0.45);
     const winners = standings.filter((r) => winnerIds.includes(r.id));
-    let title = 'Nobody scored... what a dud!';
+    let title = standings.length === 1 ? 'Practice over. Invite some mates to score points!' : 'Nobody scored... what a dud!';
     if (winners.length === 1) title = winners[0].id === state.playerId ? 'You blew up the competition!' : `${winners[0].name} blew up the competition!`;
     else if (winners.length > 1) title = `It's a tie! ${winners.map((w) => nameOf(w)).join(' & ')} share the glory!`;
     $('results-title').textContent = title;
@@ -1331,7 +1433,7 @@
   function confetti(emoji) {
     const box = $('confetti');
     if (reduceMotion()) return;
-    const colours = ['#E0301E', '#F7B500', '#2B6CB0', '#FFF4DA', '#3BA55C', '#F26B1D'];
+    const colours = ['#e04a35', '#ffc94a', '#fffdf8', '#f08a24', '#7cc6a4'];
     for (let i = 0; i < (emoji ? 60 : 140); i++) {
       const c = document.createElement('div');
       c.className = emoji ? 'confetto emoji' : 'confetto';

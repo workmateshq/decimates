@@ -1,75 +1,69 @@
 /* Decimates: the in-game top bar, player chips and the writing screen. */
 #game-view { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1100px; position: relative; flex: 1; }
-.hud { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-bottom: 12px; }
+.hud { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-bottom: 14px; }
 .hud-right { display: flex; gap: 8px; }
 .icon-btn {
-  width: 46px; height: 46px; padding: 10px; border-radius: 14px; cursor: pointer; color: var(--ink);
-  background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); position: relative; top: 0; left: 0;
-  transition: top 0.06s, left 0.06s, box-shadow 0.06s;
+  width: 44px; height: 44px; padding: 11px; border-radius: 12px; cursor: pointer; color: var(--text);
+  background: var(--panel); border: 0; box-shadow: inset 0 0 0 1px var(--line); transition: background 0.15s, color 0.15s;
 }
-.icon-btn:active { top: 3px; left: 3px; box-shadow: 0 0 0 var(--ink); }
-.icon-btn:focus-visible { outline: 3px dashed var(--ink); outline-offset: 2px; }
+.icon-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.icon-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .icon-btn svg { width: 100%; height: 100%; display: block; }
 .icon-btn .off-slash { display: none; }
-.icon-btn.off { color: #a8936f; }
+.icon-btn.off { color: var(--muted); }
 .icon-btn.off .off-slash { display: inline; }
 .icon-btn.off .on-waves { display: none; }
 .hud-centre { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .chip-p {
-  display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px;
-  background: var(--paper); border: 3px solid var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 2px 2px 0 var(--ink);
+  display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px;
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; font-weight: 700; white-space: nowrap;
 }
-.chip-p .chip-av { width: 26px; height: 26px; border-width: 2px; box-shadow: 0 0 0 2px var(--pc); }
-.chip-p .score { font-family: var(--cartoon); font-weight: 400; color: var(--red); font-size: 15px; }
-.chip-p .dot { font-size: 16px; padding-left: 6px; }
+.chip-p .chip-av { width: 26px; height: 26px; }
+.chip-p .score { font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; }
+.chip-p .dot { font-size: 14px; padding-left: 4px; }
 .hud-centre.many { gap: 5px; }
 .hud-centre.many .chip-p .name { max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Writing ---------- */
-.write-view { width: 100%; max-width: 680px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.write-view { width: 100%; max-width: 680px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .write-view[hidden] { display: none; }
-.write-head { width: 100%; display: flex; align-items: center; justify-content: space-between; }
-.write-round {
-  font-family: var(--cartoon); font-size: clamp(22px, 3vw, 30px); color: var(--paper); letter-spacing: 1px;
-  text-shadow: 3px 3px 0 var(--ink); -webkit-text-stroke: 1.5px var(--ink);
-}
-.write-round b { color: var(--mustard); font-weight: 400; }
-.write-clock {
-  font-family: var(--cartoon); font-size: 64px; line-height: 1; color: var(--paper); min-width: 2ch; text-align: right;
-  text-shadow: 4px 4px 0 var(--ink); -webkit-text-stroke: 2.5px var(--ink); font-variant-numeric: tabular-nums;
-}
+.write-head { width: 100%; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 4px; }
+.write-round { font-weight: 800; font-size: clamp(18px, 2.4vw, 22px); color: var(--muted); letter-spacing: -0.01em; }
+.write-round b { color: var(--text); font-weight: 900; }
+.write-clock { font-weight: 900; font-size: 56px; line-height: 1; letter-spacing: -0.04em; color: var(--text); min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
 .write-clock.panic { color: var(--red); animation: panic 1s ease-in-out infinite; }
 .write-clock.fast { animation-duration: 0.5s; }
-@keyframes panic { 50% { transform: scale(1.18) rotate(-4deg); } }
+@keyframes panic { 50% { transform: scale(1.08); } }
 .write-card { max-width: none; text-align: left; }
-.wp { padding: 4px 0 16px; border-bottom: 3px dashed rgba(26, 18, 8, 0.2); margin-bottom: 10px; }
+.wp { padding: 4px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
 .wp:last-child { border-bottom: 0; margin-bottom: 0; }
-.wp-label { font-size: 13px; font-weight: 900; color: var(--red); }
-.wp-prompt { font-family: var(--cartoon); font-size: clamp(22px, 3.2vw, 30px); line-height: 1.15; letter-spacing: 0.5px; margin: 2px 0 10px; }
+.wp-label { font-size: 12px; font-weight: 800; color: var(--gold); letter-spacing: 0.02em; }
+.wp-prompt { font-weight: 800; font-size: clamp(21px, 3vw, 27px); line-height: 1.2; letter-spacing: -0.02em; margin: 4px 0 12px; }
 .wp-row { display: flex; gap: 8px; align-items: stretch; }
-.wp-input { flex: 1; resize: none; text-align: left; font-size: 18px; margin: 0; min-height: 64px; line-height: 1.3; }
-.wp-input:disabled { background: #f2e9d4; color: var(--muted); }
+.wp-input { flex: 1; resize: none; text-align: left; font-size: 17px; font-weight: 600; margin: 0; min-height: 64px; line-height: 1.35; }
+.wp-input:disabled { opacity: 0.6; }
 .wp-stock { align-self: stretch; white-space: nowrap; }
-.wp-count { font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
+.wp-count { font-size: 12px; font-weight: 500; color: var(--muted); text-align: right; margin-top: 5px; font-variant-numeric: tabular-nums; }
 .wp-comic, .mu-comic { margin: 6px 0 10px; }
-.wp-comic img, .mu-comic img { display: block; width: 100%; height: auto; border: 4px solid var(--ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--ink); background: #fff; }
-.wp-comic figcaption, .mu-comic figcaption { font-size: 11px; color: var(--muted); margin-top: 6px; font-weight: 600; }
-.write-status { margin-top: 10px; color: var(--muted); text-align: center; min-height: 20px; }
+.wp-comic img, .mu-comic img { display: block; width: 100%; height: auto; border-radius: 10px; background: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
+.wp-comic figcaption, .mu-comic figcaption { font-size: 11px; color: var(--muted); margin-top: 8px; font-weight: 500; }
+.write-status { margin-top: 10px; color: var(--muted); text-align: center; min-height: 20px; font-weight: 500; }
 .write-watch { max-width: 560px; }
 .write-watch[hidden], .write-card[hidden] { display: none; }
 .writers { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .writer {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; font-size: 13px; font-weight: 800;
-  background: var(--paper); border: 3px solid var(--ink); opacity: 0.75;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 4px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); transition: background 0.2s, color 0.2s;
 }
-.writer .chip-av { width: 24px; height: 24px; border-width: 2px; box-shadow: 0 0 0 2px var(--pc); }
-.writer.done { opacity: 1; background: color-mix(in srgb, var(--green) 30%, #fff); }
+.writer .chip-av { width: 24px; height: 24px; }
+.writer.done { color: var(--text); background: color-mix(in srgb, var(--green) 18%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 45%, transparent); }
 .writer.done::after { content: '✓' / ''; color: var(--green); font-weight: 900; }
 
 @media (max-width: 640px) {
-  .hud { grid-template-columns: auto 1fr auto; gap: 6px; }
+  .hud { gap: 6px; }
   .chip-p .name { display: none; }
   .wp-row { flex-direction: column; }
   .wp-stock { align-self: flex-end; }
-  .write-clock { font-size: 48px; }
+  .wp-input { min-height: 88px; }
+  .write-clock { font-size: 44px; }
 }

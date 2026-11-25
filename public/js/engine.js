@@ -7,7 +7,8 @@
 // Round 3 (the final): everyone answers the same prompt and votes for up to 3 favourites. About 1 game in 3
 // the final is "Caption this comic" with a public domain Buck Ryan strip.
 // Points = votes received x 100 x round; a clean sweep (every vote) earns a bonus. After rounds 1 and 2
-// a scoreboard waits for players to opt in to the next round.
+// a scoreboard waits for players to opt in to the next round. Like Rapmates, a room can play with 1 to 8:
+// when nobody else can vote on a matchup it's a practice reveal (every answer goes off, no points).
 //
 // Runs in the host's browser (window.DecimatesEngine) and in Node for tests (require). It knows nothing
 // about networking: the caller supplies broadcast(event, data) and send(playerId, event, data). Every
@@ -18,7 +19,7 @@
 })(typeof self !== 'undefined' ? self : this, (Prompts) => {
   const TICK_RATE = 10; // phase checks per second
   const MAX_PLAYERS = 8;
-  const MIN_PLAYERS = 3; // a matchup needs someone who didn't write it to vote
+  const MIN_PLAYERS = 1; // practise alone, or play with mates (votes need someone who didn't write it)
   const ROUNDS = 3; // round 3 is the final
   const PROMPTS_PER_PLAYER = 2;
   const WRITE_SECONDS = 90;
@@ -65,12 +66,12 @@
   }
 
   // The ring deal: with N players and N prompts, player i gets prompts i and i+1 (mod N), so every prompt
-  // has 2 authors and every player 2 prompts. Returns { [playerId]: [promptIndex, promptIndex] }.
+  // has 2 authors and every player 2 prompts (alone: 2 prompts of your own). Returns { [playerId]: [promptIndex, promptIndex] }.
   function ringDeal(playerIds) {
     const n = playerIds.length;
     const deal = {};
     playerIds.forEach((id, i) => {
-      deal[id] = n === 1 ? [0] : [i, (i + 1) % n];
+      deal[id] = n === 1 ? [0, 1] : [i, (i + 1) % n];
     });
     return deal;
   }
@@ -318,7 +319,7 @@
         const p = this.comicFinal ? `comic:${randInt(Prompts.COMICS.length, this.random)}` : this.drawPrompt();
         this.entries = new Map(writers.map((id) => [id, { prompts: [p], answers: {}, done: false }]));
       } else {
-        const prompts = writers.map(() => this.drawPrompt());
+        const prompts = Array.from({ length: Math.max(PROMPTS_PER_PLAYER, writers.length) }, () => this.drawPrompt());
         const deal = ringDeal(writers);
         this.entries = new Map(writers.map((id) => [id, { prompts: deal[id].map((k) => prompts[k]), answers: {}, done: false }]));
       }
@@ -406,7 +407,8 @@
       const m = this.matchup;
       if (!m) return [];
       const authors = new Set(m.answers.map((a) => a.author));
-      return [...this.members.keys()].filter((id) => !(m.final ? false : authors.has(id)));
+      // In the final you vote for anyone but yourself, so you need at least one answer that isn't yours.
+      return [...this.members.keys()].filter((id) => (m.final ? m.answers.some((a) => a.author !== id) : !authors.has(id)));
     }
 
     openVote() {
@@ -449,8 +451,12 @@
       const m = this.matchup;
       m.answers.forEach((a) => { a.voters = []; });
       m.votes.forEach((picks, voter) => picks.forEach((i) => m.answers[i].voters.push(voter)));
-      const { points, winners, cleanSweep } = scoreMatchup(m.answers.map((a) => a.voters.length), this.round, { sweepable: !m.final });
-      m.result = { points, winners, cleanSweep };
+      const practice = !this.eligibleVoters().length && !m.votes.size;
+      const scored = scoreMatchup(m.answers.map((a) => a.voters.length), this.round, { sweepable: !m.final });
+      const { points, cleanSweep } = scored;
+      // Practice (nobody else could vote): every answer goes off, for no points.
+      const winners = practice ? m.answers.map((_, i) => i) : scored.winners;
+      m.result = { points, winners, cleanSweep, practice };
       m.answers.forEach((a, i) => {
         const t = this.totals.get(a.author);
         if (t && points[i]) t.total += points[i];
@@ -495,10 +501,10 @@
       return true;
     }
 
-    // Whoever opted in plays on (the rest sit out and watch). Fewer than 2: the game ends.
+    // Whoever opted in plays on (the rest sit out and watch). Nobody: the game ends.
     startNextRound() {
       const going = this.nextRoundPlayers().filter((id) => this.nextReady.has(id));
-      if (going.length < 2) return this.endGame();
+      if (!going.length) return this.endGame();
       this.order = going;
       this.beginWrite();
     }
@@ -575,6 +581,7 @@
         voters: this.eligibleVoters(),
         voted: [...m.votes.keys()],
         cleanSweep: revealed ? m.result.cleanSweep : null,
+        practice: revealed ? !!m.result.practice : null,
         stinger: revealed ? m.stinger : null,
       };
     }

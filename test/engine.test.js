@@ -94,6 +94,22 @@ test('the ring deal: every prompt to exactly 2 players, every player exactly 2 p
   }
 });
 
+test('alone: 2 prompts of your own, and every matchup is a practice reveal (no votes, no points)', () => {
+  assert.deepEqual(ringDeal(['solo']), { solo: [0, 1] });
+  const ctx = startedGame(1);
+  const { room } = ctx;
+  assert.equal(room.entries.get('p1').prompts.length, 2);
+  assert.equal(new Set(room.entries.get('p1').prompts).size, 2);
+  writeAll(ctx);
+  assert.equal(room.matchups.length, 2);
+  ctx.advance(room.stepEndsAt - ctx.now());
+  assert.equal(room.step, 'reveal', 'nobody to vote: straight to the reveal');
+  const m = room.phasePayload().matchup;
+  assert.equal(m.practice, true);
+  assert.ok(m.answers.every((a) => a.winner && a.points === 0));
+  assert.equal(room.totals.get('p1').total, 0);
+});
+
 test('players and the crowd: the first 8 play, later arrivals (and anyone mid-game) join the crowd', () => {
   const { room } = makeRoom();
   for (let i = 1; i <= 10; i++) room.join(`m${i}`, 'Joker');
@@ -105,13 +121,12 @@ test('players and the crowd: the first 8 play, later arrivals (and anyone mid-ga
   assert.equal(ctx.room.members.get('late').role, 'crowd');
 });
 
-test('the game needs 3 players (unless testing with minPlayers)', () => {
+test('a game can start with 1 player, like Rapmates (minPlayers raises it for testing)', () => {
   const { room } = makeRoom();
   room.join('a');
-  room.join('b');
-  assert.equal(room.start('a'), false);
-  assert.ok(room.start('a', { minPlayers: 1 }));
-  assert.equal(MIN_PLAYERS, 3);
+  assert.equal(room.start('a', { minPlayers: 2 }), false);
+  assert.ok(room.start('a'));
+  assert.equal(MIN_PLAYERS, 1);
 });
 
 test('a game opens with the intro; the host can skip it', () => {
@@ -260,7 +275,7 @@ test('prompts never repeat across the game', () => {
   assert.equal(new Set(seen).size, 8 + 8 + 1);
 });
 
-test('between rounds: only those who opt in play on; fewer than 2 ends the game', () => {
+test('between rounds: only those who opt in play on; nobody opting in ends the game', () => {
   const ctx = startedGame(4);
   const { room } = ctx;
   writeAll(ctx);
@@ -272,9 +287,8 @@ test('between rounds: only those who opt in play on; fewer than 2 ends the game'
   assert.deepEqual([...room.entries.keys()], ['p1', 'p3', 'p4'], 'p2 sits out');
   writeAll(ctx);
   while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
-  room.input('p1', { type: 'nextRound', round: 2 });
   ctx.advance(NEXT_ROUND_SECONDS * 1000);
-  assert.equal(room.phase, 'results', 'only 1 opted in: the podium');
+  assert.equal(room.phase, 'results', 'nobody opted in: the podium');
 });
 
 test('the final (round 3): everyone answers the same prompt and votes for up to 3 (not their own), x3 points', () => {
