@@ -340,15 +340,15 @@
   const INK = '#1d1410';
   // [left end x, centre y]; every sausage is the same length and thickness.
   const DYN_LENGTH = 250;
-  const DYN_STICKS = [[124, 64], [128, 170], [100, 114], [140, 124]].map(([x0, cy]) => [x0, cy, x0 + DYN_LENGTH]);
+  // Top and bottom line up; the middle pair sits a little left (behind) and a little right (in front).
+  const DYN_STICKS = [[124, 64], [124, 170], [96, 112], [140, 126]].map(([x0, cy]) => [x0, cy, x0 + DYN_LENGTH]);
   const DYN_FUSE = 'M16 62 C 30 46, 46 84, 60 92 S 76 108, 86 112';
+  const SAUSAGE_LINE = '#6b2414';
   function dynStick([x0, cy, x1], r = 30, e = 24) {
-    // A sausage: a capsule with plump rounded ends, a glossy sheen and a few grill marks.
-    const marks = [x0 + 18, x0 + 36, x1 - 34, x1 - 16].map((x) => `<path d="M${x - 7} ${cy + r * 0.55}L${x + 9} ${cy - r * 0.55}"/>`).join('');
-    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#c8553b" stroke="${INK}" stroke-width="2.6"/>
-      <path d="M${x0 - 6} ${cy + r * 0.62}Q${(x0 + x1) / 2} ${cy + r * 0.82} ${x1 + 6} ${cy + r * 0.62}" fill="none" stroke="#9e3a24" stroke-width="7" stroke-linecap="round" opacity=".55"/>
-      <path d="M${x0 + 2} ${cy - r * 0.5}Q${(x0 + x1) / 2} ${cy - r * 0.72} ${x1 - 2} ${cy - r * 0.5}" fill="none" stroke="#ec9274" stroke-width="5" stroke-linecap="round" opacity=".8"/>
-      <g stroke="#6b2414" stroke-width="4" stroke-linecap="round" opacity=".55">${marks}</g>`;
+    // A sausage: a capsule with plump rounded ends, a glossy sheen on top and a shadow underneath.
+    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#bb5a3c" stroke="${SAUSAGE_LINE}" stroke-width="2.6"/>
+      <path d="M${x0 + 2} ${cy + r * 0.6}Q${(x0 + x1) / 2} ${cy + r * 0.74} ${x1 - 2} ${cy + r * 0.6}" fill="none" stroke="#a24a30" stroke-width="7" stroke-linecap="round"/>
+      <path d="M${x0 + 4} ${cy - r * 0.55}Q${(x0 + x1) / 2} ${cy - r * 0.72} ${x1 - 4} ${cy - r * 0.55}" fill="none" stroke="#e08a6a" stroke-width="4.5" stroke-linecap="round"/>`;
   }
   function dynamiteSvg() {
     const sparks = Array.from({ length: 9 }, (_, i) => {
