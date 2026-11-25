@@ -467,7 +467,7 @@
     $('setup-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
-    ['intro-vo', 'final-round-vo', 'explosion'].forEach(loadSample);
+    ['intro-vo', 'final-round-vo', 'explosion', 'golf-clap', 'winner-vo-01', 'winner-vo-02', 'winner-vo-03'].forEach(loadSample);
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -623,10 +623,12 @@
     if (state.phase) applyPhase(state.phase, true);
   });
   $('leave-btn').addEventListener('click', () => {
+    stopPodiumSounds();
     net.emit('leaveRoom');
     resetToSetup();
   });
   $('exit-btn').addEventListener('click', () => {
+    stopPodiumSounds();
     state.over = null;
     showLobby();
     applyLobby({ ...state.lobby, hostId: state.hostId, roomCode: $('room-code-txt').textContent });
@@ -719,6 +721,7 @@
   // ---------- Game: phases from the host ----------
 
   net.on('gameStarted', (payload) => {
+    stopPodiumSounds();
     state.away = false;
     state.over = null;
     state.game = { order: payload.order, totals: payload.totals || [] };
@@ -1526,10 +1529,40 @@
     }));
     updateResultsButtons();
     $('results-overlay').classList.add('show');
-    if (winners.length) {
-      confetti();
-      playSfx('win');
+    if (winners.length) confetti();
+    // The clap always; the winner voiceover only when there's a real winner among 2 or more players (not solo).
+    playWinnerSounds(winners.length && standings.length > 1 ? state.over && state.over.winnerVo : null);
+  }
+
+  // The podium: a golf clap, then a winner voiceover a couple of seconds in (the clap dips under it). The host
+  // picks which voiceover so the whole room hears the same one.
+  const WINNER_VO_DELAY = 2.2;
+  let podiumSounds = [];
+  function stopPodiumSounds() {
+    podiumSounds.forEach((s) => { try { s.stop(); } catch { /* done */ } });
+    podiumSounds = [];
+  }
+  function playWinnerSounds(n) {
+    if (!ac || ac.state !== 'running') return;
+    stopPodiumSounds();
+    const clap = samples['golf-clap'];
+    const vo = n ? samples[`winner-vo-0${Math.min(3, Math.max(1, n))}`] : null;
+    const t = ac.currentTime + 0.05;
+    const clapGain = ac.createGain();
+    clapGain.connect(sfxGain);
+    if (vo) {
+      const v = t + WINNER_VO_DELAY;
+      clapGain.gain.setValueAtTime(1, v - 0.2);
+      clapGain.gain.linearRampToValueAtTime(0.25, v + 0.15);
     }
+    [[clap, t, clapGain], [vo, t + WINNER_VO_DELAY, sfxGain]].forEach(([buf, at, dest]) => {
+      if (!buf) return;
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(dest);
+      src.start(at);
+      podiumSounds.push(src);
+    });
   }
 
   function confetti(emoji) {
@@ -1552,7 +1585,7 @@
     setTimeout(() => box.replaceChildren(), 5600);
   }
 
-  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, samples, fuseHiss, get intro() { return intro; } };
+  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, samples, fuseHiss, get podiumSounds() { return podiumSounds; }, get intro() { return intro; } };
 
   buildSlots();
   renderSlots();
