@@ -51,11 +51,8 @@ body.in-game header { display: none; }
 
 /* ---------- Header ---------- */
 header { text-align: center; margin-bottom: 22px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-#logo { display: flex; align-items: center; gap: 14px; line-height: 1; }
-.logo-mark { width: 104px; flex: none; }
-.logo-mark .dyn-art { display: block; transform: rotate(-8deg); }
-.logo-mark .dyn-label { display: none; }
-.logo-word { font-size: clamp(44px, 9vw, 72px); font-weight: 900; letter-spacing: -0.035em; color: var(--text); }
+#logo { line-height: 0; }
+.logo-img { display: block; width: min(360px, 80vw); height: auto; }
 .subtitle { font-size: 15px; font-weight: 600; color: var(--muted); }
 
 /* ---------- Panels and buttons ---------- */
@@ -115,4 +112,4 @@ body.in-game .credits { display: none; }
 #debug-info { position: fixed; left: 8px; bottom: 8px; z-index: 60; font: 12px ui-monospace, Menlo, monospace; background: #000; color: #8f8; padding: 6px; }
 
 /* Phones get full-size layout (the 0.9 zoom is for laptop screens). */
-@media (max-width: 600px) { html { zoom: 1; } body { min-height: 100vh; } .logo-mark { width: 78px; } }
+@media (max-width: 600px) { html { zoom: 1; } body { min-height: 100vh; } }

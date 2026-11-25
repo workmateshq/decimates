@@ -417,8 +417,6 @@
     path.setAttribute('d', d);
     path.setAttribute('stroke-width', (Math.PI * a).toFixed(1));
   })();
-  // The logo's little bundle.
-  if ($('logo-mark')) $('logo-mark').innerHTML = `<span class="dyn-art lit">${dynamiteSvg()}${dynamiteRopes()}</span>`;
 
   // ---------- Lobby ----------
 
