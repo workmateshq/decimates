@@ -3,38 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rapmates</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%92%8E%3C/text%3E%3C/svg%3E">
+  <title>Decimates</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%A8%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Protest+Riot&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Lilita+One&family=Luckiest+Guy&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/base.css?v=__BUILD__">
   <link rel="stylesheet" href="css/lobby.css?v=__BUILD__">
-  <link rel="stylesheet" href="css/stage.css?v=__BUILD__">
+  <link rel="stylesheet" href="css/game.css?v=__BUILD__">
+  <link rel="stylesheet" href="css/matchup.css?v=__BUILD__">
   <link rel="stylesheet" href="css/overlays.css?v=__BUILD__">
-  <link rel="stylesheet" href="css/writebars.css?v=__BUILD__">
 </head>
 <body>
   <header>
-    <h1 id="logo"><img src="logo.svg?v=__BUILD__" alt="Rapmates" width="170" height="50"></h1>
-    <p class="subtitle">Write bars or spit them in this rap battle for up to 8 players</p>
+    <h1 id="logo" aria-label="Decimates">
+      <svg class="logo-svg" viewBox="0 0 520 170" aria-hidden="true">
+        <defs>
+          <path id="logo-arc" d="M40 132 Q260 40 480 132"/>
+        </defs>
+        <g class="logo-stick" transform="translate(236 4) rotate(12)">
+          <path d="M22 18 q8 -18 26 -14" fill="none" stroke="#1a1208" stroke-width="4" stroke-linecap="round"/>
+          <circle class="logo-spark" cx="50" cy="4" r="6" fill="#ffd23f"/>
+          <rect x="6" y="16" width="28" height="56" rx="9" fill="#e0301e" stroke="#1a1208" stroke-width="4"/>
+          <rect x="12" y="20" width="6" height="48" rx="3" fill="#ff7a5c"/>
+        </g>
+        <text class="logo-shadow" dy="2"><textPath href="#logo-arc" startOffset="50%" text-anchor="middle">DECIMATES</textPath></text>
+        <text class="logo-text"><textPath href="#logo-arc" startOffset="50%" text-anchor="middle">DECIMATES</textPath></text>
+      </svg>
+    </h1>
+    <p class="subtitle">Write the funniest answer. Win the vote. Blow up the competition.</p>
   </header>
-
-  <div class="mic-drop" id="mic-drop" aria-live="polite">
-    <div class="mic-rain" id="mic-rain" aria-hidden="true"></div>
-    <div class="mic-drop-card">
-      <span class="mic-drop-av" id="mic-drop-av" aria-hidden="true"></span>
-      <p class="mic-drop-text">Mic drop!</p>
-      <p class="mic-drop-name" id="mic-drop-name"></p>
-      <div class="mic-drop-words" id="mic-drop-words"></div>
-    </div>
-  </div>
 
   <div class="overlay" id="name-overlay">
     <form class="card name-card" id="name-form">
-      <p class="kicker">Welcome to Rapmates</p>
-      <p class="big-title">Your MC name</p>
-      <input type="text" id="name-modal-input" maxlength="16" placeholder="Gucci Maynard" autocomplete="nickname" autocapitalize="words" spellcheck="false" aria-label="Your MC name">
+      <p class="kicker">Welcome to Decimates</p>
+      <p class="big-title">Your name</p>
+      <input type="text" id="name-modal-input" maxlength="16" placeholder="Captain Kaboom" autocomplete="nickname" autocapitalize="words" spellcheck="false" aria-label="Your name">
       <button class="btn" type="submit">Let's go</button>
     </form>
   </div>
@@ -47,32 +51,25 @@
       <button class="btn" id="create-btn">Create room</button>
       <div class="or">or</div>
       <input type="text" id="room-input" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code">
-      <button class="btn blue" id="join-btn">Join room</button>
-      <div class="or">or</div>
-      <button class="btn orange" id="solo-btn">Solo practice</button>
-      <select class="track-select" id="solo-track" aria-label="Solo practice beat"></select>
+      <button class="btn yellow" id="join-btn">Join room</button>
     </div>
 
     <p class="hint" id="connecting-hint" style="display:none;">Connecting...</p>
 
     <div id="room-view" style="display:none;">
-      <div class="mode-pick" id="mode-pick" role="radiogroup" aria-label="Game mode">
-        <button type="button" class="mode-opt" data-mode="writebars" role="radio"><b>Write bars</b><span>90 seconds to write 4 lines on your rhymes, then battle. 3 rounds.</span></button>
-        <button type="button" class="mode-opt" data-mode="freestyle" role="radio"><b>Freestyle</b><span>16 bars off the top over the beat. The room rates every turn.</span></button>
-      </div>
-      <p class="mode-note" id="mode-note"></p>
+      <p class="rules-line">3 to 8 players write jokes, then go head to head. Everyone else votes, and the winning joke goes <b>KA-BOOM</b>.</p>
       <button class="btn" id="start-btn">Start game</button>
       <button class="btn yellow" id="rejoin-btn" style="display:none;">Back to the show</button>
       <p class="wait-msg" id="wait-msg"></p>
       <button class="btn ghost link-only" id="home-btn">Create or join a new room</button>
       <p class="hint" id="reconnect-hint" style="display:none;"></p>
-      <!-- Room code details are hidden for link rooms like /rapmates/mate -->
+      <!-- Room code details are hidden for link rooms like /decimates/mate -->
       <div class="room-details">
         <div class="room-label">Room code</div>
         <div class="room-display" id="room-code-txt">----</div>
         <div class="share">
           <input type="text" id="share-link" readonly aria-label="Invite link">
-          <button class="btn blue small" id="copy-btn">Copy link</button>
+          <button class="btn yellow small" id="copy-btn">Copy link</button>
         </div>
         <p class="hint">Send this link to your mates. They join straight away, no code needed. Anyone after the first 8 joins the crowd and votes.</p>
         <button class="btn ghost" id="leave-btn">Leave room</button>
@@ -81,7 +78,7 @@
 
     <p class="error" id="error-msg" role="alert"></p>
   </div>
-  <p class="credits" id="credits">Avatars: <a href="https://www.dicebear.com/styles/initial-face/" target="_blank" rel="noopener">Initial Face</a> by <a href="https://www.dicebear.com" target="_blank" rel="noopener">DiceBear</a>, <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener">CC0 1.0</a></p>
+  <p class="credits" id="credits">Avatars: <a href="https://www.dicebear.com/styles/initial-face/" target="_blank" rel="noopener">Initial Face</a> by <a href="https://www.dicebear.com" target="_blank" rel="noopener">DiceBear</a>, <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener">CC0 1.0</a>. Comics: Buck Ryan, public domain.</p>
 
   <div id="game-view">
     <div class="hud">
@@ -91,152 +88,106 @@
         <button type="button" class="icon-btn" id="music-toggle" aria-pressed="true" aria-label="Music" title="Music on/off">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="17.5" cy="16" r="2.5" fill="currentColor"/><path class="off-slash" d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
         </button>
-        <button type="button" class="icon-btn" id="sfx-toggle" aria-pressed="true" aria-label="Sound effects" title="Sound effects on/off">
+        <button type="button" class="icon-btn" id="sfx-toggle" aria-pressed="true" aria-label="Sound effects and voice" title="Sound effects on/off">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="on-waves" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="off-slash" d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
         </button>
       </div>
     </div>
 
+    <!-- Writing: your prompts, a box each, a stock joke button each -->
     <div class="write-view" id="write-view" hidden>
       <div class="write-head">
         <div class="write-round" id="write-round"></div>
-        <div class="write-clock" id="write-clock" aria-live="off">60</div>
+        <div class="write-clock" id="write-clock" aria-live="off">90</div>
       </div>
       <div class="card write-card" id="write-form">
-        <div class="write-pairs" id="write-pairs"></div>
-        <div id="write-lines"></div>
-        <div class="voice-pick" role="radiogroup" aria-label="Who spits it?">
-          <span>Who spits it?</span>
-          <button type="button" class="voice-opt" data-voice="self" role="radio">I'll rap it myself</button>
-          <button type="button" class="voice-opt" data-voice="male" role="radio">Robot MC (Male)</button>
-          <button type="button" class="voice-opt" data-voice="female" role="radio">Robot MC (Female)</button>
-        </div>
-        <button class="btn" id="write-done">Done</button>
-        <button class="btn ghost" id="write-edit" hidden>Edit my bars</button>
+        <div id="write-prompts"></div>
+        <button class="btn" id="write-done">Light the fuse</button>
+        <button class="btn ghost" id="write-edit" hidden>Edit my jokes</button>
         <p class="write-status" id="write-status"></p>
       </div>
       <div class="card write-watch" id="write-watch" hidden>
-        <p class="kicker">Write bars</p>
-        <p class="big-title">The rappers are writing...</p>
-        <p class="hint">Get ready to rate their bars.</p>
+        <p class="kicker" id="watch-kicker">Writing time</p>
+        <p class="big-title">The players are writing...</p>
+        <p class="hint">Get ready to vote for the funniest.</p>
       </div>
       <div class="writers" id="writers"></div>
     </div>
 
-    <div id="stage">
-      <div class="mic-line">
-        <div class="mic-name" id="mic-name"></div>
-        <div class="bar-count" id="bar-count"></div>
+    <!-- A matchup: the prompt, the answers on dynamite, votes, then the winner explodes -->
+    <div class="matchup-view" id="matchup-view" hidden>
+      <div class="mu-count" id="mu-count"></div>
+      <div class="mu-prompt" id="mu-prompt">
+        <p class="mu-prompt-text" id="mu-prompt-text"></p>
+        <figure class="mu-comic" id="mu-comic" hidden>
+          <img id="mu-comic-img" alt="A Buck Ryan comic strip to caption">
+          <figcaption id="mu-comic-note"></figcaption>
+        </figure>
       </div>
-      <div class="bars-wrap" id="bars-wrap">
-        <div id="bars"></div>
-        <canvas id="ball-canvas"></canvas>
-        <div class="wb-lines" id="wb-lines" aria-live="polite"></div>
-        <div class="wb-beats" id="wb-beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-        <div class="count" id="count"></div>
-
+      <div class="mu-answers" id="mu-answers"></div>
+      <div class="mu-footer">
+        <p class="mu-help" id="mu-help"></p>
+        <button class="btn" id="mu-cast" hidden>Cast my votes</button>
+        <div class="mu-timer" aria-hidden="true"><i id="mu-timer-bar"></i></div>
+        <p class="mu-voted" id="mu-voted"></p>
       </div>
-      <p class="game-hint" id="game-hint">Rap along to the beat. Land the word in the 4th box right when the ball hits it.</p>
+    </div>
 
-      <div class="overlay intro-overlay" id="intro-overlay">
-        <div class="card intro-card">
-          <p class="kicker">How to play</p>
-          <p class="big-title" id="intro-title"></p>
-          <ul class="intro-rules" id="intro-rules"></ul>
-          <p class="intro-cta" id="intro-cta"></p>
-          <div class="intro-bar" aria-hidden="true"><i id="intro-progress"></i></div>
-          <button class="btn ghost" id="intro-skip" hidden>Skip intro</button>
+    <div class="boom" id="boom" aria-hidden="true">
+      <div class="boom-flash"></div>
+      <svg class="boom-burst" viewBox="-100 -100 200 200"><polygon points="0,-96 18,-40 70,-70 40,-18 96,-8 42,12 78,62 22,38 6,96 -14,40 -66,76 -40,18 -96,10 -42,-12 -74,-60 -20,-36"/><polygon class="inner" points="0,-62 12,-26 46,-44 26,-10 62,-4 26,10 50,40 12,24 2,62 -10,26 -42,48 -26,10 -62,4 -26,-8 -48,-38 -12,-24"/></svg>
+      <div class="boom-word" id="boom-word">KA-BOOM!</div>
+      <div class="smoke" id="smoke"></div>
+    </div>
+    <div class="flyer" id="flyer" aria-live="polite"></div>
+    <div class="sweep" id="sweep" aria-live="polite"><span>Clean sweep!</span></div>
+
+    <div class="overlay intro-overlay" id="intro-overlay">
+      <div class="card intro-card">
+        <p class="kicker">How to play</p>
+        <p class="big-title">Decimates</p>
+        <ul class="intro-rules" id="intro-rules"></ul>
+        <p class="intro-cta" id="intro-cta"></p>
+        <div class="intro-bar" aria-hidden="true"><i id="intro-progress"></i></div>
+        <button class="btn ghost" id="intro-skip" hidden>Skip intro</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="standings-overlay">
+      <div class="card">
+        <p class="kicker" id="standings-kicker">Scoreboard</p>
+        <p class="big-title" id="standings-title">Scoreboard</p>
+        <div class="standings" id="standings-table"></div>
+        <p class="hint" id="standings-next"></p>
+        <div class="next-round" id="next-round" hidden>
+          <button class="btn" id="next-round-btn">Play next round</button>
+          <p class="next-round-status" id="next-round-status"></p>
         </div>
       </div>
+    </div>
 
-      <div class="overlay" id="ready-overlay">
-        <div class="card">
-          <p class="kicker" id="ready-kicker">Get ready</p>
-          <span class="ready-avatar" id="ready-avatar" aria-hidden="true"></span>
-          <p class="ready-name" id="ready-name"></p>
-          <p class="big-title" id="ready-line">is on the mic</p>
-          <span class="ready-beat" id="ready-beat"></span>
-        </div>
-      </div>
-
-      <div class="overlay" id="vote-overlay">
-        <div class="card">
-          <p class="kicker">Rate the bars</p>
-          <p class="big-title" id="vote-title"></p>
-          <div id="vote-stars-wrap">
-            <div class="stars" id="stars" role="radiogroup" aria-label="Stars"></div>
-            <button class="btn" id="vote-btn" disabled>Submit</button>
-          </div>
-          <div id="wb-vote" hidden>
-            <div class="wb-vote-list" id="wb-vote-list"></div>
-            <button class="btn" id="wb-vote-btn" disabled>Submit</button>
-          </div>
-          <p class="hint" id="vote-msg"></p>
-          <div class="vote-progress"><div id="vote-timer"></div></div>
-          <p class="vote-count" id="vote-count"></p>
-        </div>
-      </div>
-
-      <div class="overlay" id="score-overlay">
-        <div class="card">
-          <p class="kicker">The crowd says</p>
-          <span class="score-av" id="score-av" aria-hidden="true"></span>
-          <p class="big-title" id="score-name"></p>
-          <p class="score-num" id="score-num"></p>
-          <p class="score-stars" id="score-stars"></p>
-          <p class="hint" id="score-votes"></p>
-        </div>
-      </div>
-
-      <div class="overlay" id="standings-overlay">
-        <div class="card">
-          <p class="kicker" id="standings-kicker">Scoreboard</p>
-          <p class="big-title" id="standings-title">Scoreboard</p>
-          <div class="standings" id="standings-table"></div>
-          <p class="hint" id="standings-next"></p>
-          <div class="next-round" id="next-round" hidden>
-            <button class="btn" id="next-round-btn">Play next round</button>
-            <p class="next-round-status" id="next-round-status"></p>
-          </div>
-        </div>
-      </div>
-
-      <div class="overlay" id="results-overlay">
-        <div class="card">
-          <p class="kicker">Results</p>
-          <p class="big-title" id="results-title"></p>
-          <div class="podium" id="podium"></div>
-          <div class="results-actions">
-            <button class="btn" id="again-btn">Play again</button>
-            <p class="wait-msg" id="results-wait"></p>
-            <button class="btn ghost" id="exit-btn">Back to lobby</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="overlay" id="solo-overlay">
-        <div class="card">
-          <p class="kicker">16 bars done</p>
-          <p class="big-title">Nice! Again?</p>
-          <select class="track-select" id="solo-track-again" aria-label="Beat for the next go" style="margin: 0 0 12px;"></select>
-          <button class="btn orange" id="solo-again-btn">Again!</button>
-          <button class="btn ghost" id="solo-home-btn">Home</button>
+    <div class="overlay" id="results-overlay">
+      <div class="card">
+        <p class="kicker">Results</p>
+        <p class="big-title" id="results-title"></p>
+        <div class="podium" id="podium"></div>
+        <div class="results-actions">
+          <button class="btn" id="again-btn">Play again</button>
+          <p class="wait-msg" id="results-wait"></p>
+          <button class="btn ghost" id="exit-btn">Back to lobby</button>
         </div>
       </div>
     </div>
   </div>
 
-  <button class="btn yellow sound-nudge" id="sound-nudge">Tap to turn the beat on</button>
   <div id="confetti"></div>
   <pre id="debug-info" hidden></pre>
 
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="js/config.js?v=__BUILD__"></script>
-  <script src="js/words.js?v=__BUILD__"></script>
-  <script src="js/tracks.js?v=__BUILD__"></script>
+  <script src="js/prompts.js?v=__BUILD__"></script>
   <script src="js/engine.js?v=__BUILD__"></script>
   <script src="js/net.js?v=__BUILD__"></script>
-  <script src="js/beats.js?v=__BUILD__"></script>
   <script src="js/client.js?v=__BUILD__"></script>
 </body>
 </html>

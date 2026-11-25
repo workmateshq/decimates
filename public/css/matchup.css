@@ -1,0 +1,176 @@
+/* Decimates: a matchup. The prompt arrives big in the middle then docks at the top; each answer is a flat
+   white label stuck to a bundle of dynamite with a lit fuse; the winner EXPLODES and its label flies out
+   through the smoke into the middle of the screen. */
+.matchup-view { width: 100%; max-width: 1000px; display: flex; flex-direction: column; align-items: center; gap: 14px; flex: 1; }
+.matchup-view[hidden] { display: none; }
+.mu-count {
+  font-family: var(--cartoon); font-size: 18px; letter-spacing: 1px; color: var(--paper); background: var(--ink);
+  padding: 4px 14px; border-radius: 999px;
+}
+
+/* The prompt: a big card that springs in, then shrinks and slides up to dock at the top. */
+.mu-prompt {
+  width: min(900px, 100%); background: var(--paper); border: 5px solid var(--ink); border-radius: 22px; box-shadow: 8px 8px 0 var(--ink);
+  padding: 26px 28px; text-align: center; transform-origin: 50% 0;
+  transition: transform 0.6s cubic-bezier(.3, 1.4, .5, 1), padding 0.6s, margin 0.6s;
+  margin-top: 18vh; transform: scale(1.12);
+}
+.mu-prompt.docked { margin-top: 0; transform: scale(1); padding: 16px 22px; }
+.mu-prompt.pop { animation: prompt-in 0.7s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes prompt-in { from { transform: scale(0.2) rotate(-12deg); opacity: 0; } to { transform: scale(1.12); opacity: 1; } }
+.mu-prompt-text { font-family: var(--cartoon); font-size: clamp(30px, 5vw, 56px); line-height: 1.1; letter-spacing: 1px; transition: font-size 0.6s; }
+.mu-prompt.docked .mu-prompt-text { font-size: clamp(24px, 3.4vw, 38px); }
+.mu-comic { max-width: 760px; margin: 10px auto 0; }
+.mu-comic[hidden] { display: none; }
+.mu-comic img { width: auto; max-width: 100%; max-height: 40vh; margin: 0 auto; }
+.mu-prompt.docked .mu-comic img { max-height: 26vh; }
+.mu-comic figcaption { text-align: center; }
+
+/* The answers: dynamite bundles side by side (stacked on phones). */
+.mu-answers { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 26px 36px; align-items: start; padding: 10px 0 0; }
+.mu-answers.final { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px; padding-top: 26px; }
+.dyn {
+  position: relative; display: flex; flex-direction: column; align-items: center; background: none; border: 0; padding: 26px 0 0;
+  font: inherit; color: inherit; cursor: default; opacity: 0; transform: translateY(-60vh) rotate(-20deg);
+}
+.dyn.in { animation: drop-in 0.6s cubic-bezier(.3, 1.5, .5, 1) both; opacity: 1; }
+@keyframes drop-in { from { opacity: 1; transform: translateY(-60vh) rotate(-20deg); } to { opacity: 1; transform: none; } }
+.dyn-svg { width: min(300px, 100%); height: auto; overflow: visible; filter: drop-shadow(5px 5px 0 var(--ink)); }
+.dyn .fuse { stroke-dasharray: 120; stroke-dashoffset: 0; }
+.dyn .spark { opacity: 0; transform: translate(154px, -30px); }
+.dyn.lit .spark { opacity: 1; }
+.dyn.lit .spark.burn { animation: spark-path linear forwards, spark-flick 0.12s steps(2) infinite alternate; }
+.dyn.lit .fuse.burn { animation: fuse-burn linear forwards; }
+@keyframes fuse-burn { to { stroke-dashoffset: 120; } }
+@keyframes spark-path {
+  0% { transform: translate(154px, -30px); }
+  35% { transform: translate(128px, -6px); }
+  70% { transform: translate(110px, 10px); }
+  100% { transform: translate(100px, 26px); }
+}
+@keyframes spark-flick { from { scale: 0.8; } to { scale: 1.25; } }
+.dyn-label {
+  position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%) rotate(-3deg); width: min(330px, 108%);
+  background: #fff; border: 3px solid var(--ink); border-radius: 4px; padding: 12px 14px; box-shadow: 3px 3px 0 rgba(26, 18, 8, 0.35);
+  font-family: var(--ui); font-weight: 900; font-size: clamp(17px, 2vw, 22px); line-height: 1.2; color: var(--ink); text-align: center;
+}
+.dyn:nth-child(even) .dyn-label { transform: translate(-50%, -50%) rotate(2.5deg); }
+.dyn-label::before, .dyn-label::after {
+  content: ''; position: absolute; top: -10px; width: 46px; height: 18px; background: rgba(247, 225, 150, 0.85); border: 1px solid rgba(26, 18, 8, 0.15);
+}
+.dyn-label::before { left: 14px; transform: rotate(-8deg); }
+.dyn-label::after { right: 14px; transform: rotate(7deg); }
+.dyn-label.empty { color: var(--muted); font-style: italic; }
+.dyn-letter {
+  position: absolute; top: 0; left: 8px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--cartoon); font-size: 22px; background: var(--mustard); border: 3px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
+}
+.dyn-voters { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px; min-height: 34px; }
+.voter { display: inline-flex; align-items: center; gap: 4px; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 8px 2px 2px; font-size: 12px; }
+.voter .av { width: 26px; height: 26px; border-width: 2px; }
+.voter.new { animation: pop-in 0.4s cubic-bezier(.3, 1.6, .5, 1); }
+.dyn-author, .dyn-points { display: none; }
+
+/* Voting: answers are big buttons; your picks get a ring. */
+.mu-answers.voting .dyn:not(:disabled) { cursor: pointer; }
+.mu-answers.voting .dyn:not(:disabled):hover .dyn-svg { transform: rotate(-3deg) scale(1.03); }
+.dyn .dyn-svg { transition: transform 0.15s; }
+.dyn.picked .dyn-label { outline: 5px solid var(--green); outline-offset: 3px; }
+.dyn.picked .dyn-letter { background: var(--green); color: #fff; }
+.dyn.mine { opacity: 0.6; }
+.dyn.mine::after { content: 'Yours'; position: absolute; top: 4px; right: 8px; font-size: 12px; font-weight: 900; background: var(--ink); color: var(--paper); padding: 2px 8px; border-radius: 999px; }
+.dyn:focus-visible { outline: 3px dashed var(--ink); outline-offset: 6px; border-radius: 12px; }
+
+/* The reveal: who wrote it and the points. Duds go grey; winners blow up. */
+.mu-answers.revealed .dyn-author { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-weight: 900; font-size: 15px; }
+.mu-answers.revealed .dyn-author .av { width: 32px; height: 32px; }
+.mu-answers.revealed .dyn-points { display: block; font-family: var(--cartoon); font-size: 26px; color: var(--red); text-shadow: 2px 2px 0 var(--ink); }
+.dyn.dud .dyn-svg { filter: grayscale(0.8) drop-shadow(5px 5px 0 var(--ink)); opacity: 0.7; }
+.dyn.boom .dyn-svg { animation: blow 0.5s ease-out forwards; }
+.dyn.boom .dyn-label { animation: label-gone 0.3s 0.1s forwards; }
+@keyframes blow { 40% { transform: scale(1.3) rotate(6deg); } 100% { transform: scale(0.1) rotate(40deg); opacity: 0; } }
+@keyframes label-gone { to { opacity: 0; } }
+
+.mu-footer { width: min(700px, 100%); display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: auto; padding-bottom: 6px; }
+.mu-help { font-weight: 900; font-size: 18px; color: var(--ink); background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; padding: 4px 16px; min-height: 0; }
+.mu-help:empty { display: none; }
+.mu-footer #mu-cast { width: auto; padding: 10px 26px; }
+.mu-timer { width: 100%; height: 14px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); overflow: hidden; }
+.mu-timer i { display: block; height: 100%; width: 100%; background: var(--mustard); transform-origin: 0 50%; }
+.mu-timer.low i { background: var(--red); }
+.mu-voted { font-size: 14px; color: var(--ink); font-weight: 900; min-height: 20px; }
+
+/* ---------- KA-BOOM: flash, burst, smoke over everything ---------- */
+.boom { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: none; overflow: hidden; }
+.boom.go { display: block; animation: boom-out 0.5s 3.6s forwards; }
+@keyframes boom-out { to { opacity: 0; } }
+.boom-flash { position: absolute; inset: 0; background: #fff6c4; opacity: 0; }
+.boom.go .boom-flash { animation: flash 0.45s ease-out; }
+@keyframes flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.boom-burst { position: absolute; left: 50%; top: 50%; width: 80vmin; height: 80vmin; transform: translate(-50%, -50%) scale(0); }
+.boom-burst polygon { fill: var(--mustard); stroke: var(--ink); stroke-width: 4; }
+.boom-burst polygon.inner { fill: var(--red); }
+.boom.go .boom-burst { animation: burst 1.3s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+@keyframes burst { 0% { transform: translate(-50%, -50%) scale(0) rotate(0); } 30% { transform: translate(-50%, -50%) scale(1.15) rotate(12deg); } 70% { transform: translate(-50%, -50%) scale(1) rotate(18deg); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.4) rotate(22deg); opacity: 0; } }
+.boom-word {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0) rotate(-8deg);
+  font-family: var(--shout); font-size: clamp(60px, 14vw, 170px); color: var(--paper); -webkit-text-stroke: 4px var(--ink);
+  text-shadow: 8px 8px 0 var(--ink); white-space: nowrap;
+}
+.boom.go .boom-word { animation: boom-word 1.1s cubic-bezier(.3, 1.8, .5, 1) 0.05s forwards; }
+@keyframes boom-word { 0% { transform: translate(-50%, -50%) scale(0) rotate(-8deg); } 60% { transform: translate(-50%, -50%) scale(1.1) rotate(-8deg); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.25) rotate(-6deg); opacity: 0; } }
+.smoke { position: absolute; inset: 0; }
+.smoke i {
+  position: absolute; left: 50%; top: 50%; width: var(--s); height: var(--s); border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #fffaf0 0, #f1e8d8 38%, #d9ccb6 72%, #bfae94 100%);
+  box-shadow: inset -10px -14px 0 rgba(120, 100, 70, 0.18);
+  transform: translate(-50%, -50%) scale(0.1); opacity: 0;
+}
+.boom.go .smoke i { animation: puff 3.4s cubic-bezier(.15, .9, .3, 1) forwards; }
+@keyframes puff {
+  0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
+  12% { opacity: 1; }
+  55% { transform: translate(calc(-50% + var(--dx) * 0.55), calc(-50% + var(--dy) * 0.55)) scale(2.4); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(3.2); opacity: 0; }
+}
+
+/* The winning label flies out of the smoke to the middle, then settles with its author and points. */
+.flyer { position: fixed; left: 50%; top: 50%; z-index: 45; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 14px; pointer-events: none; width: min(640px, 92vw); }
+.flyer.show { display: flex; }
+.flyer.fly { animation: fly-out 1.1s cubic-bezier(.2, 1.4, .4, 1) both; }
+.flyer.settled { animation: none; }
+@keyframes fly-out {
+  0% { transform: translate(-50%, 10%) scale(0.3) rotate(-30deg); opacity: 0; }
+  40% { opacity: 1; }
+  70% { transform: translate(-50%, -55%) scale(1.15) rotate(6deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+}
+.fly-kicker { font-family: var(--cartoon); font-size: 28px; color: var(--paper); -webkit-text-stroke: 2px var(--ink); text-shadow: 4px 4px 0 var(--ink); letter-spacing: 1px; }
+.fly-card { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.fly-card .dyn-label { position: static; transform: rotate(-2deg); width: 100%; font-size: clamp(22px, 3.4vw, 34px); padding: 20px 22px; box-shadow: 8px 8px 0 var(--ink); border-width: 5px; }
+.fly-by { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 18px; background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; padding: 4px 14px 4px 4px; box-shadow: 3px 3px 0 var(--ink); }
+.fly-by .av { width: 38px; height: 38px; }
+.flyer.multi { gap: 10px; }
+.flyer.multi .fly-card { gap: 6px; }
+.flyer.multi .fly-card .dyn-label { font-size: clamp(18px, 2.4vw, 24px); padding: 12px 18px; box-shadow: 6px 6px 0 var(--ink); }
+.fly-by b { font-family: var(--cartoon); font-weight: 400; color: var(--red); font-size: 22px; }
+
+.sweep { position: fixed; left: 0; right: 0; top: 10vh; z-index: 46; display: none; justify-content: center; pointer-events: none; }
+.sweep.show { display: flex; }
+.sweep span {
+  font-family: var(--shout); font-size: clamp(44px, 9vw, 110px); color: var(--mustard); -webkit-text-stroke: 4px var(--ink);
+  text-shadow: 8px 8px 0 var(--red); transform: rotate(-6deg); animation: sweep-in 0.8s cubic-bezier(.3, 1.8, .5, 1) both;
+  text-transform: uppercase;
+}
+@keyframes sweep-in { from { transform: scale(0) rotate(-30deg); } to { transform: scale(1) rotate(-6deg); } }
+
+@media (max-width: 700px) {
+  .mu-answers { grid-template-columns: 1fr; gap: 18px; }
+  .mu-prompt { margin-top: 10vh; padding: 18px; }
+  .dyn-svg { width: min(240px, 80%); }
+  .dyn-label { width: min(300px, 92%); font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mu-prompt, .dyn.in, .flyer.fly, .sweep span { animation: none; transition: none; }
+  .dyn { transform: none; }
+}

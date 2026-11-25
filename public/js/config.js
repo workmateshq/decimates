@@ -1,5 +1,5 @@
-// Rapmates settings you can change without touching the game code.
-window.RAPMATES_CONFIG = {
+// Decimates settings you can change without touching the game code.
+window.DECIMATES_CONFIG = {
   // Relay (TURN) server for players whose browsers can't connect directly, e.g. Firefox <-> Chrome,
   // phones on mobile data, or strict work networks. Set this to a URL that returns a JSON array of
   // RTCIceServer objects (relay logins).

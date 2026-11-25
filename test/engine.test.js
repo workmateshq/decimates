@@ -1,10 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const E = require('../public/js/engine.js');
+const Prompts = require('../public/js/prompts.js');
+
 const {
-  GameRoom, generateRoomCode, standingsOf, turnLengthMs, TICK_RATE, LEAD_MS, VOTE_SECONDS, SCORE_MS, MIC_DROP_MS, INTRO_MS, MAX_PLAYERS, NAME_MAX, sanitizeName,
-} = require('../public/js/engine.js');
-const Words = require('../public/js/words.js');
-const Tracks = require('../public/js/tracks.js');
+  GameRoom, generateRoomCode, ringDeal, scoreMatchup, sanitizeAnswer, sanitizeName, NAME_MAX, ANSWER_MAX, NO_ANSWER,
+  WRITE_SECONDS, WRITE_GRACE_MS, SHOW_MS, VOTE_SECONDS, FINAL_VOTE_SECONDS, REVEAL_MS, SWEEP_REVEAL_MS, CLEAN_SWEEP_BONUS,
+  NEXT_ROUND_SECONDS, STANDINGS_MS, INTRO_MS, ROUNDS, MAX_PLAYERS, MIN_PLAYERS, STINGERS,
+} = E;
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -17,9 +20,8 @@ function seeded(seed) {
   };
 }
 
-// A room with a manual clock and loop that records every message it sends. The existing tests cover
-// Freestyle; Write Bars (the default mode) has its own tests in writebars.test.js.
-function makeRoom(mode = 'freestyle', maxPlayers) {
+// A room with a manual clock and loop that records every message it sends.
+function makeRoom({ introMs = 0, maxPlayers, seed = 7 } = {}) {
   const sent = [];
   let tickFn = null;
   let clock = 1000;
@@ -28,342 +30,352 @@ function makeRoom(mode = 'freestyle', maxPlayers) {
     send: (to, ev, data) => sent.push({ to, ev, data }),
     setInterval: (fn) => { tickFn = fn; return 1; },
     clearInterval: () => { tickFn = null; },
-    random: seeded(7),
+    random: seeded(seed),
     now: () => clock,
+    introMs,
     maxPlayers,
-    introMs: 0, // no intro screen in these tests (it has its own)
   });
-  room.mode = mode;
-  // Moves the clock on and lets the room's loop notice.
   const advance = (ms) => { clock += ms; if (tickFn) tickFn(); };
-  const last = (ev, to) => [...sent].reverse().find((m) => m.ev === ev && (!to || m.to === to));
+  const last = (ev) => [...sent].reverse().find((m) => m.ev === ev);
   return { room, sent, last, advance, now: () => clock, isRunning: () => tickFn !== null };
 }
 
-function startedRoom(players = 2, crowd = 0) {
-  const ctx = makeRoom('freestyle', crowd ? players : undefined);
-  for (let i = 1; i <= players + crowd; i++) ctx.room.join(`p${i}`);
-  ctx.room.start('p1');
+// N players (p1..pN) plus a crowd (c1..), game started.
+function startedGame(players = 3, crowd = 0, options = {}, roomOptions = {}) {
+  const ctx = makeRoom({ maxPlayers: crowd ? players : undefined, ...roomOptions });
+  for (let i = 1; i <= players; i++) ctx.room.join(`p${i}`, `P${i}`);
+  for (let i = 1; i <= crowd; i++) ctx.room.join(`c${i}`, `C${i}`);
+  assert.ok(ctx.room.start('p1', options));
   return ctx;
 }
 
-// Runs the current turn to the end of its 16 bars and the mic-drop pause after them.
-const finishRap = (ctx) => ctx.advance(ctx.room.turn.endAt + MIC_DROP_MS - ctx.now());
+// Everyone answers each of their prompts and locks in.
+function writeAll(ctx, text = (id, p) => `${id} on ${p}`) {
+  const { room } = ctx;
+  [...room.entries.keys()].forEach((id) => {
+    room.entries.get(id).prompts.forEach((p) => room.input(id, { type: 'answer', promptId: p, text: text(id, p) }));
+  });
+  [...room.entries.keys()].forEach((id) => room.input(id, { type: 'done' }));
+}
+const toVote = (ctx) => ctx.advance(ctx.room.stepEndsAt - ctx.now());
+const authorIdx = (ctx, id) => ctx.room.matchup.answers.findIndex((a) => a.author === id);
 
 test('room codes are 4 letters without I or O', () => {
   for (let i = 0; i < 50; i++) assert.match(generateRoomCode(), /^[A-HJ-NP-Z]{4}$/);
 });
 
-test('names are what players type: trimmed, no control characters, at most NAME_MAX characters', () => {
-  assert.equal(sanitizeName('  Zak \n the   Rapper  '), 'Zak the Rapper');
+test('names and answers are trimmed, without control characters, and limited', () => {
+  assert.equal(sanitizeName('  Zak \n the   Joker  '), 'Zak the Joker');
   assert.equal(Array.from(sanitizeName('x'.repeat(40))).length, NAME_MAX);
-  assert.equal(sanitizeName(42), '');
+  assert.equal(sanitizeAnswer('  a\tbig\u0000 joke '), 'a big joke');
+  assert.equal(sanitizeAnswer('y'.repeat(300)).length, ANSWER_MAX);
+  assert.equal(sanitizeAnswer({ evil: 1 }), '');
 });
 
-test('the first 8 join as rappers P1-P8; the 9th and later join the crowd', () => {
+test('the prompts: 200+ unique, plus 50 unique stock jokes', () => {
+  assert.ok(Prompts.PROMPTS.length >= 200, `${Prompts.PROMPTS.length} prompts`);
+  assert.equal(new Set(Prompts.PROMPTS.map((p) => p.toLowerCase())).size, Prompts.PROMPTS.length);
+  assert.equal(Prompts.STOCK_JOKES.length, 50);
+  assert.equal(new Set(Prompts.STOCK_JOKES).size, 50);
+  assert.ok(Prompts.STOCK_JOKES.every((j) => j.length <= ANSWER_MAX));
+});
+
+test('the ring deal: every prompt to exactly 2 players, every player exactly 2 prompts', () => {
+  for (let n = 2; n <= MAX_PLAYERS; n++) {
+    const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+    const deal = ringDeal(ids);
+    const perPrompt = new Map();
+    ids.forEach((id) => {
+      assert.equal(new Set(deal[id]).size, 2, `${id} gets 2 different prompts with ${n} players`);
+      deal[id].forEach((k) => perPrompt.set(k, (perPrompt.get(k) || 0) + 1));
+    });
+    assert.equal(perPrompt.size, n);
+    perPrompt.forEach((count) => assert.equal(count, 2));
+  }
+});
+
+test('players and the crowd: the first 8 play, later arrivals (and anyone mid-game) join the crowd', () => {
   const { room } = makeRoom();
-  for (let i = 1; i <= 11; i++) assert.ok(room.join(`p${i}`).ok);
-  assert.equal(MAX_PLAYERS, 8);
-  assert.deepEqual(room.players.map((p) => p.number), [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.equal(new Set(room.players.map((p) => p.color)).size, 8, 'everyone has their own colour');
-  assert.deepEqual(room.crowd.map((m) => m.id), ['p9', 'p10', 'p11']);
-  assert.ok(room.crowd.every((m) => m.role === 'crowd' && m.number === null));
-  const lobby = room.lobbyPayload();
-  assert.equal(lobby.players.length, MAX_PLAYERS);
-  assert.equal(lobby.crowd.length, 3);
-  assert.equal(room.join('p1').ok, false, 'no joining twice');
+  for (let i = 1; i <= 10; i++) room.join(`m${i}`, 'Joker');
+  assert.equal(room.players.length, MAX_PLAYERS);
+  assert.equal(room.crowd.length, 2);
+  assert.equal(new Set([...room.members.values()].map((m) => m.name)).size, 10, 'names made unique');
+  const ctx = startedGame(3);
+  ctx.room.join('late', 'Late');
+  assert.equal(ctx.room.members.get('late').role, 'crowd');
 });
 
-test('everyone keeps the name they picked; clashes get a number and no name becomes "Rapper"', () => {
-  const { room } = makeRoom();
-  room.join('a', 'Zak');
-  room.join('b', 'zak');
-  room.join('c', 'Zak');
-  room.join('d', '   ');
-  room.join('e');
-  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map((id) => room.members.get(id).name), ['Zak', 'zak 2', 'Zak 3', 'Rapper', 'Rapper 2']);
-  room.join('f', 'A very long name indeed');
-  assert.ok(Array.from(room.members.get('f').name).length <= NAME_MAX);
-  for (let i = 0; i < 20; i++) room.join(`m${i}`, 'Same');
-  const names = [...room.members.values()].map((m) => m.name.toLowerCase());
-  assert.equal(new Set(names).size, names.length, 'all unique');
-});
-
-test('between games a freed rapper slot goes to the longest-waiting crowd member', () => {
-  const { room } = makeRoom();
-  for (let i = 1; i <= 10; i++) room.join(`p${i}`);
-  room.leave('p2');
-  const promoted = room.members.get('p9');
-  assert.equal(promoted.role, 'player');
-  assert.equal(promoted.number, 2);
-  assert.deepEqual(room.crowd.map((m) => m.id), ['p10']);
-});
-
-test('the host hands over to the next rapper, then the crowd', () => {
-  const { room, last } = makeRoom('freestyle', 4);
-  ['a', 'b', 'c', 'd', 'e'].forEach((id) => room.join(id));
-  assert.equal(room.hostId, 'a');
-  room.leave('a');
-  assert.equal(room.hostId, 'b');
-  assert.equal(last('lobbyUpdate').data.hostId, 'b');
-  room.leave('b');
-  room.leave('c');
-  room.leave('d');
-  assert.equal(room.hostId, 'e', 'the crowd member (promoted to rapper) hosts');
-});
-
-test('only the host starts the game', () => {
+test('the game needs 3 players (unless testing with minPlayers)', () => {
   const { room } = makeRoom();
   room.join('a');
   room.join('b');
-  assert.equal(room.start('b'), false);
-  assert.ok(room.start('a'));
-  assert.equal(room.start('a'), false, 'already started');
+  assert.equal(room.start('a'), false);
+  assert.ok(room.start('a', { minPlayers: 1 }));
+  assert.equal(MIN_PLAYERS, 3);
 });
 
-test('a turn is a shared schedule: a random track, a short lead, 4 intro bars + 16 rap bars', () => {
-  const ctx = startedRoom(2);
-  const payload = ctx.last('gameStarted').data;
-  assert.equal(payload.phase, 'turn');
-  const { turn } = payload;
-  const track = Tracks.byId(turn.trackId);
-  assert.ok(track, 'a known track');
-  assert.equal(turn.bpm, track.bpm);
-  assert.equal(turn.rapperId, 'p1');
-  assert.equal(turn.startAt, ctx.now() + LEAD_MS);
-  assert.equal(turn.endAt - turn.startAt, turnLengthMs(track));
-  assert.equal(Math.round(turnLengthMs(track)), Math.round(((4 + 16) * 4 * 60000) / track.bpm));
-  assert.equal(turn.pairs.length, 8);
-  assert.equal(ctx.room.phase, 'turn');
-  ctx.advance(1000);
-  assert.equal(ctx.room.phase, 'turn', 'still rapping');
-});
-
-test('every turn gets a track, never the same one twice in a row', () => {
-  const ctx = startedRoom(4);
-  const ids = [];
-  for (let t = 0; t < 4; t++) {
-    ids.push(ctx.room.turn.trackId);
-    finishRap(ctx);
-    ctx.advance(VOTE_SECONDS * 1000);
-    ctx.advance(SCORE_MS);
-  }
-  ids.forEach((id) => assert.ok(Tracks.byId(id)));
-  for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1]);
-});
-
-test('turns go in player order P1 -> P4, each with fresh rhyme pairs', () => {
-  const ctx = startedRoom(4, 1);
-  const seen = [];
-  const pairs = [];
-  for (let t = 0; t < 4; t++) {
-    seen.push(ctx.room.turn.rapperId);
-    pairs.push(...ctx.room.turn.pairs.map((p) => p.join('/')));
-    finishRap(ctx);
-    assert.equal(ctx.room.phase, 'vote');
-    ctx.advance(VOTE_SECONDS * 1000);
-    assert.equal(ctx.room.phase, 'score');
-    ctx.advance(SCORE_MS);
-  }
-  assert.deepEqual(seen, ['p1', 'p2', 'p3', 'p4']);
-  assert.equal(new Set(pairs).size, 32, 'no pair repeats within a game');
-  assert.equal(ctx.room.phase, 'results');
-  assert.equal(ctx.room.started, false);
-  assert.equal(ctx.isRunning(), false);
-});
-
-test('voting: the rapper cannot vote for themselves; rappers and the crowd can', () => {
-  const ctx = startedRoom(3, 2);
-  const { room } = ctx;
-  assert.equal(room.input('p2', { type: 'vote', stars: 5, turn: 0 }), false, 'no voting while rapping');
-  finishRap(ctx);
-  assert.equal(room.phase, 'vote');
-  assert.equal(room.input('p1', { type: 'vote', stars: 5, turn: 0 }), false, 'rapper on themselves');
-  assert.equal(room.input('p2', { type: 'vote', stars: 0, turn: 0 }), false, 'stars are 1-5');
-  assert.equal(room.input('p2', { type: 'vote', stars: 6, turn: 0 }), false);
-  assert.equal(room.input('p2', { type: 'vote', stars: 2.5, turn: 0 }), false);
-  assert.equal(room.input('p2', { type: 'vote', stars: 4, turn: 3 }), false, 'a vote for another turn');
-  assert.equal(room.input('ghost', { type: 'vote', stars: 4, turn: 0 }), false);
-  assert.ok(room.input('p2', { type: 'vote', stars: 4, turn: 0 }));
-  assert.ok(room.input('p4', { type: 'vote', stars: 5, turn: 0 }), 'crowd votes');
-  assert.equal(ctx.last('votes').data.count, 2);
-  assert.equal(ctx.last('votes').data.needed, 4);
-  assert.ok(room.input('p5', { type: 'vote', stars: 2, turn: 0 }));
-  assert.equal(room.phase, 'vote');
-  assert.ok(room.input('p3', { type: 'vote', stars: 3, turn: 0 }));
-  // Everyone's voted: the score shows straight away, without waiting out the 20 seconds.
-  assert.equal(room.phase, 'score');
-  const { result } = ctx.last('phase').data;
-  assert.equal(result.id, 'p1');
-  assert.equal(result.average, 3.5);
-  assert.equal(result.votes, 4);
-});
-
-test('voting closes after 20 seconds with whoever voted', () => {
-  const ctx = startedRoom(3);
-  finishRap(ctx);
-  ctx.room.vote('p2', 5);
-  ctx.advance(VOTE_SECONDS * 1000 - 100);
-  assert.equal(ctx.room.phase, 'vote');
-  ctx.advance(100);
-  assert.equal(ctx.room.phase, 'score');
-  assert.equal(ctx.room.results[0].average, 5);
-  assert.equal(ctx.room.results[0].votes, 1);
-});
-
-test('a voter leaving closes the vote if everyone left has voted', () => {
-  const ctx = startedRoom(3);
-  finishRap(ctx);
-  ctx.room.vote('p2', 3);
-  ctx.room.leave('p3');
-  assert.equal(ctx.room.phase, 'score');
-});
-
-test('if the rapper leaves mid-turn the next rapper is up', () => {
-  const ctx = startedRoom(3);
-  ctx.advance(2000);
-  ctx.room.leave('p1');
-  assert.equal(ctx.room.phase, 'turn');
-  assert.equal(ctx.room.turn.rapperId, 'p2');
-  assert.equal(ctx.last('phase').data.turn.rapperId, 'p2');
-  assert.equal(ctx.room.results.length, 0);
-});
-
-test('averages pick the winner and ties share the mic', () => {
-  const ctx = startedRoom(3);
-  const scores = [[4, 4], [5, 3], [2, 2]]; // p1 4, p2 4, p3 2
-  for (let t = 0; t < 3; t++) {
-    finishRap(ctx);
-    const voters = ['p1', 'p2', 'p3'].filter((id) => id !== ctx.room.turn.rapperId);
-    voters.forEach((id, i) => ctx.room.vote(id, scores[t][i]));
-    ctx.advance(SCORE_MS);
-  }
-  const over = ctx.last('gameOver').data;
-  assert.deepEqual(over.standings.map((r) => [r.id, r.average]), [['p1', 4], ['p2', 4], ['p3', 2]]);
-  assert.deepEqual(over.winnerIds, ['p1', 'p2']);
-});
-
-test('standings: a single top average wins; no votes ranks last and never wins', () => {
-  const r = (id, number, average) => ({ id, number, average, name: id });
-  let s = standingsOf([r('a', 1, 3.5), r('b', 2, 4.67), r('c', 3, null)]);
-  assert.deepEqual(s.standings.map((x) => x.id), ['b', 'a', 'c']);
-  assert.deepEqual(s.winnerIds, ['b']);
-  s = standingsOf([r('a', 1, null)]);
-  assert.deepEqual(s.winnerIds, []);
-});
-
-test('a room with a lone rapper skips voting (nobody to vote)', () => {
-  const ctx = startedRoom(1);
-  finishRap(ctx);
-  assert.equal(ctx.room.phase, 'score');
-  assert.equal(ctx.room.results[0].average, null);
-  ctx.advance(SCORE_MS);
-  assert.equal(ctx.room.phase, 'results');
-});
-
-test('joining mid-game sends the game so far to the newcomer', () => {
-  const ctx = startedRoom(2);
-  ctx.room.join('late');
-  ctx.room.announceJoin('late');
-  const msg = ctx.last('gameStarted', 'late');
-  assert.ok(msg);
-  assert.equal(msg.data.turn.rapperId, 'p1');
-  assert.ok(!msg.data.order.includes('late'), 'late joiners rap next game');
-});
-
-test('play again starts a new round with a new order', () => {
-  const ctx = startedRoom(2);
-  for (let t = 0; t < 2; t++) {
-    finishRap(ctx);
-    ctx.advance(VOTE_SECONDS * 1000);
-    ctx.advance(SCORE_MS);
-  }
-  assert.equal(ctx.room.phase, 'results');
-  ctx.room.join('p3');
-  assert.ok(ctx.room.start('p1'));
-  assert.equal(ctx.room.round, 2);
-  assert.deepEqual(ctx.room.order, ['p1', 'p2', 'p3']);
-});
-
-test('everyone leaving stops the room', () => {
-  const ctx = startedRoom(2);
-  ctx.room.leave('p1');
-  ctx.room.leave('p2');
-  assert.equal(ctx.room.started, false);
-  assert.equal(ctx.isRunning(), false);
-});
-
-test('when a game ends, free rapper slots go to the crowd', () => {
-  const ctx = startedRoom(4, 2);
-  ctx.room.leave('p3');
-  assert.equal(ctx.room.members.get('p5').role, 'crowd', 'no promotion mid-game');
-  ctx.room.leave('p1');
-  ctx.room.leave('p2');
-  ctx.room.leave('p4');
-  assert.equal(ctx.room.phase, 'results');
-  assert.deepEqual(ctx.room.players.map((p) => [p.id, p.number]), [['p5', 1], ['p6', 2]]);
-});
-
-test('the loop ticks at TICK_RATE', () => {
-  assert.equal(TICK_RATE, 10);
-  assert.ok(Words.PAIRS.length === 150);
-});
-
-test('the "faaah" ad-lib lands about every 3rd turn: never twice running, always by the 4th', () => {
-  for (const r of [0, 0.49, 0.51, 0.99]) {
-    const room = new GameRoom('TEST', { broadcast() {}, send() {}, setInterval: () => 1, clearInterval() {}, random: () => r, now: () => 0 });
-    const picks = Array.from({ length: 24 }, () => room.nextAdlib());
-    const named = picks.filter(Boolean);
-    named.forEach((n, i) => assert.equal(n, ['faaah', 'damn'][i % 2], 'they alternate'));
-    const gaps = [];
-    let last = -1;
-    picks.forEach((p, i) => { if (p) { gaps.push(i - last); last = i; } });
-    assert.ok(gaps.length >= 6, `${gaps.length} ad-libs in 24 turns`);
-    gaps.forEach((g) => assert.ok(g >= 3 && g <= 4, `gap ${g}`));
-  }
-});
-
-test('Freestyle: a 7-second mic drop after the 16 bars, then the vote', () => {
-  const ctx = startedRoom(2);
-  ctx.advance(ctx.room.turn.endAt - ctx.now());
-  assert.equal(ctx.room.phase, 'turn', 'the mic drop plays first');
-  ctx.advance(MIC_DROP_MS);
-  assert.equal(ctx.room.phase, 'vote');
-});
-
-test('a game opens with the intro screen (the rules over a beat); the host can skip it', () => {
-  for (const mode of ['freestyle', 'writebars']) {
-    const ctx = makeRoom(mode);
-    ctx.room.introMs = undefined; // the real intro length
-    ctx.room.join('p1');
-    ctx.room.join('p2');
-    ctx.room.start('p1');
-    assert.equal(ctx.room.phase, 'intro', mode);
-    const p = ctx.last('gameStarted').data;
-    assert.equal(p.introEndsAt - p.introStartedAt, INTRO_MS[mode]);
-    ctx.advance(INTRO_MS[mode] - 100);
-    assert.equal(ctx.room.phase, 'intro');
-    ctx.advance(100);
-    assert.equal(ctx.room.phase, mode === 'writebars' ? 'write' : 'turn', 'then the game');
-  }
-  const ctx = makeRoom('writebars');
-  ctx.room.introMs = undefined;
-  ctx.room.join('p1');
-  ctx.room.join('p2');
-  ctx.room.start('p1');
-  assert.equal(ctx.room.input('p2', { type: 'skipIntro' }), false, 'only the host skips');
-  assert.ok(ctx.room.input('p1', { type: 'skipIntro' }));
+test('a game opens with the intro; the host can skip it', () => {
+  const ctx = makeRoom({ introMs: null });
+  ['a', 'b', 'c'].forEach((id) => ctx.room.join(id));
+  ctx.room.start('a');
+  assert.equal(ctx.room.phase, 'intro');
+  assert.equal(ctx.last('gameStarted').data.introEndsAt - ctx.now(), INTRO_MS);
+  assert.equal(ctx.room.input('b', { type: 'skipIntro' }), false, 'only the host');
+  assert.ok(ctx.room.input('a', { type: 'skipIntro' }));
   assert.equal(ctx.room.phase, 'write');
+  const ctx2 = makeRoom({ introMs: null });
+  ['a', 'b', 'c'].forEach((id) => ctx2.room.join(id));
+  ctx2.room.start('a');
+  ctx2.advance(INTRO_MS);
+  assert.equal(ctx2.room.phase, 'write', 'or it ends on its own');
 });
 
-test('the round-end voiceover cycles 1-6 across turns, picked by the host', () => {
-  const ctx = startedRoom(7, 1);
-  const seen = [];
-  for (let t = 0; t < 7; t++) {
-    seen.push(ctx.room.turn.roundEnd);
-    finishRap(ctx);
-    ctx.advance(VOTE_SECONDS * 1000);
-    ctx.advance(SCORE_MS);
+test('writing: 90 seconds on the host clock, 2 prompts each, answers private until the matchups', () => {
+  const ctx = startedGame(4);
+  const p = ctx.last('gameStarted').data;
+  assert.equal(p.phase, 'write');
+  assert.equal(p.writeEndsAt - ctx.now(), WRITE_SECONDS * 1000);
+  assert.equal(p.writers.length, 4);
+  assert.ok(p.writers.every((w) => w.prompts.length === 2 && w.prompts.every((q) => typeof q.text === 'string')));
+  assert.ok(ctx.room.input('p1', { type: 'answer', promptId: p.writers[0].prompts[0].id, text: 'SECRET-JOKE' }));
+  ctx.room.input('p1', { type: 'done' });
+  assert.ok(!JSON.stringify(ctx.last('phase').data).includes('SECRET-JOKE'), 'answers stay private while writing');
+  assert.equal(ctx.room.input('p1', { type: 'answer', promptId: 99999, text: 'not mine' }), false);
+  ctx.advance(WRITE_SECONDS * 1000);
+  assert.equal(ctx.room.phase, 'write', 'a short grace for the last drafts');
+  ctx.advance(WRITE_GRACE_MS);
+  assert.equal(ctx.room.phase, 'matchup');
+  assert.equal(ctx.room.matchups.length, 4, 'one matchup per prompt');
+  const empties = ctx.room.matchups.flatMap((m) => m.answers).filter((a) => a.empty);
+  assert.ok(empties.length === 7 && empties.every((a) => a.text === NO_ANSWER), 'empty answers become "(no answer)"');
+});
+
+test('done, edit and done again; everyone locked in starts the matchups straight away', () => {
+  const ctx = startedGame(3);
+  const { room } = ctx;
+  room.input('p1', { type: 'done' });
+  assert.ok(room.input('p1', { type: 'edit' }));
+  room.input('p2', { type: 'done' });
+  room.input('p3', { type: 'done' });
+  assert.equal(room.phase, 'write', 'p1 is editing');
+  room.input('p1', { type: 'done' });
+  assert.equal(room.phase, 'matchup');
+  assert.equal(room.step, 'show');
+});
+
+test('a matchup: show, then vote (authors can\'t), then reveal with points; voters show as they vote', () => {
+  const ctx = startedGame(3, 1);
+  const { room } = ctx;
+  writeAll(ctx);
+  const m = room.matchup;
+  const authors = m.answers.map((a) => a.author);
+  const others = ['p1', 'p2', 'p3', 'c1'].filter((id) => !authors.includes(id));
+  assert.equal(others.length, 2, 'the other player and the crowd');
+  const show = ctx.last('phase').data.matchup;
+  assert.equal(show.step, 'show');
+  assert.ok(show.answers.every((a) => a.author === null), 'anonymous');
+  toVote(ctx);
+  assert.equal(room.step, 'vote');
+  assert.equal(room.stepEndsAt - ctx.now(), VOTE_SECONDS * 1000);
+  assert.equal(room.input(authors[0], { type: 'vote', matchup: 0, choice: 'a' }), false, 'authors can\'t vote');
+  assert.ok(room.input(others[0], { type: 'vote', matchup: 0, choice: 'a' }));
+  const live = ctx.last('phase').data.matchup;
+  assert.deepEqual(live.answers[0].voters.map((v) => v.id), [others[0]], 'voter avatars appear on the answer');
+  assert.equal(live.answers[0].author, null);
+  room.input(others[1], { type: 'vote', matchup: 0, choice: 'b' });
+  assert.equal(room.step, 'reveal', 'everyone voted: reveal early');
+  const r = ctx.last('phase').data.matchup;
+  assert.deepEqual(r.answers.map((a) => a.author.id), authors);
+  assert.deepEqual(r.answers.map((a) => a.points), [100, 100], 'round 1: 100 per vote');
+  assert.deepEqual(r.answers.map((a) => a.winner), [true, true], 'a tie: both explode');
+  assert.equal(r.cleanSweep, false);
+  assert.ok(r.stinger >= 1 && r.stinger <= STINGERS);
+  assert.equal(room.stepEndsAt - ctx.now(), REVEAL_MS);
+  ctx.advance(REVEAL_MS);
+  assert.equal(room.mu, 1, 'next matchup');
+  assert.equal(room.step, 'show');
+});
+
+test('scoring: votes x 100 x round; a clean sweep earns the bonus; nobody votes, nobody scores', () => {
+  assert.deepEqual(scoreMatchup([3, 0], 1), { points: [300 + CLEAN_SWEEP_BONUS, 0], winners: [0], cleanSweep: true });
+  assert.deepEqual(scoreMatchup([2, 1], 2), { points: [400, 200], winners: [0], cleanSweep: false });
+  assert.deepEqual(scoreMatchup([1, 1], 1), { points: [100, 100], winners: [0, 1], cleanSweep: false });
+  assert.deepEqual(scoreMatchup([0, 0], 1), { points: [0, 0], winners: [], cleanSweep: false });
+  assert.deepEqual(scoreMatchup([2, 0, 0], 3, { sweepable: false }), { points: [600, 0, 0], winners: [0], cleanSweep: false });
+
+  const ctx = startedGame(3, 1);
+  const { room } = ctx;
+  writeAll(ctx);
+  toVote(ctx);
+  const authors = room.matchup.answers.map((a) => a.author);
+  const voters = room.eligibleVoters();
+  voters.forEach((v) => room.input(v, { type: 'vote', matchup: 0, choice: 'b' }));
+  assert.equal(room.matchup.result.cleanSweep, true);
+  assert.equal(room.totals.get(authors[1]).total, 200 + CLEAN_SWEEP_BONUS);
+  assert.equal(room.stepEndsAt - ctx.now(), SWEEP_REVEAL_MS, 'a longer reveal for the clean sweep');
+});
+
+test('nobody votes in time: nobody scores, on to the next matchup', () => {
+  const ctx = startedGame(3);
+  writeAll(ctx);
+  toVote(ctx);
+  ctx.advance(VOTE_SECONDS * 1000);
+  assert.equal(ctx.room.step, 'reveal');
+  assert.deepEqual(ctx.room.matchup.result.points, [0, 0]);
+});
+
+test('a full round: every matchup, then the scoreboard waits up to 30 s for "Play next round"', () => {
+  const ctx = startedGame(3);
+  const { room } = ctx;
+  writeAll(ctx);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(room.mu, i);
+    toVote(ctx);
+    room.eligibleVoters().forEach((v) => room.input(v, { type: 'vote', matchup: i, choice: 'a' }));
+    ctx.advance(room.stepEndsAt - ctx.now());
   }
-  assert.deepEqual(seen, [1, 2, 3, 4, 5, 6, 1]);
+  assert.equal(room.phase, 'standings');
+  const p = ctx.last('phase').data;
+  assert.equal(p.standingsEndsAt - ctx.now(), NEXT_ROUND_SECONDS * 1000);
+  assert.equal(p.roundResults.length, 3);
+  assert.ok(room.input('p1', { type: 'nextRound', round: 1 }));
+  assert.equal(room.input('p1', { type: 'nextRound', round: 1 }), false, 'once');
+  room.input('p2', { type: 'nextRound', round: 1 });
+  room.input('p3', { type: 'nextRound', round: 1 });
+  assert.equal(room.phase, 'write');
+  assert.equal(room.round, 2);
+});
+
+test('prompts never repeat across the game', () => {
+  const ctx = startedGame(8);
+  const { room } = ctx;
+  const seen = [];
+  for (let r = 1; r <= 2; r++) {
+    room.entries.forEach((e) => seen.push(...e.prompts));
+    writeAll(ctx);
+    while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
+    room.nextRoundPlayers().forEach((id) => room.input(id, { type: 'nextRound', round: r }));
+  }
+  room.entries.forEach((e) => seen.push(...e.prompts));
+  assert.equal(new Set(seen).size, 8 + 8 + 1);
+});
+
+test('between rounds: only those who opt in play on; fewer than 2 ends the game', () => {
+  const ctx = startedGame(4);
+  const { room } = ctx;
+  writeAll(ctx);
+  while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
+  room.input('p1', { type: 'nextRound', round: 1 });
+  room.input('p3', { type: 'nextRound', round: 1 });
+  room.input('p4', { type: 'nextRound', round: 1 });
+  ctx.advance(NEXT_ROUND_SECONDS * 1000);
+  assert.deepEqual([...room.entries.keys()], ['p1', 'p3', 'p4'], 'p2 sits out');
+  writeAll(ctx);
+  while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
+  room.input('p1', { type: 'nextRound', round: 2 });
+  ctx.advance(NEXT_ROUND_SECONDS * 1000);
+  assert.equal(room.phase, 'results', 'only 1 opted in: the podium');
+});
+
+test('the final (round 3): everyone answers the same prompt and votes for up to 3 (not their own), x3 points', () => {
+  const ctx = startedGame(4, 1);
+  const { room } = ctx;
+  for (let r = 1; r <= 2; r++) {
+    writeAll(ctx);
+    while (room.phase === 'matchup') ctx.advance(room.stepEndsAt - ctx.now());
+    room.nextRoundPlayers().forEach((id) => room.input(id, { type: 'nextRound', round: r }));
+  }
+  assert.equal(room.round, ROUNDS);
+  const prompts = new Set([...room.entries.values()].map((e) => e.prompts.join()));
+  assert.equal(prompts.size, 1, 'one shared prompt');
+  assert.equal(ctx.last('phase').data.final, true);
+  writeAll(ctx);
+  assert.equal(room.matchups.length, 1);
+  assert.equal(room.matchup.answers.length, 4);
+  toVote(ctx);
+  assert.equal(room.stepEndsAt - ctx.now(), FINAL_VOTE_SECONDS * 1000);
+  const own = authorIdx(ctx, 'p1');
+  assert.equal(room.input('p1', { type: 'vote', matchup: 0, choices: [own] }), false, 'not your own');
+  assert.equal(room.input('p1', { type: 'vote', matchup: 0, choices: [0, 1, 2, 3].filter((i) => i !== own) }), true, '3 picks');
+  assert.equal(room.input('c1', { type: 'vote', matchup: 0, choices: [0, 1, 2, 3] }), false, 'at most 3');
+  const p2 = authorIdx(ctx, 'p2');
+  ['c1', 'p3', 'p4'].forEach((v) => room.input(v, { type: 'vote', matchup: 0, choices: [p2] }));
+  const before = room.totals.get('p2').total;
+  room.input('p2', { type: 'vote', matchup: 0, choices: [authorIdx(ctx, 'p3')] });
+  assert.equal(room.step, 'reveal');
+  assert.equal(room.totals.get('p2').total - before, 4 * 100 * 3, '4 votes x 100 x round 3');
+  assert.equal(room.matchup.result.cleanSweep, false, 'no clean sweep in the final');
+  ctx.advance(room.stepEndsAt - ctx.now());
+  assert.equal(room.phase, 'standings');
+  ctx.advance(STANDINGS_MS);
+  assert.equal(room.phase, 'results');
+  const over = ctx.last('gameOver').data;
+  assert.equal(over.standings[0].id, 'p2');
+  assert.deepEqual(over.winnerIds, ['p2']);
+});
+
+test('leavers: mid-write their answers become "(no answer)"; an author leaving mid-matchup doesn\'t stall it', () => {
+  const ctx = startedGame(4);
+  const { room } = ctx;
+  ['p1', 'p2', 'p3'].forEach((id) => {
+    room.entries.get(id).prompts.forEach((p) => room.input(id, { type: 'answer', promptId: p, text: 'joke' }));
+    room.input(id, { type: 'done' });
+  });
+  assert.equal(room.phase, 'write');
+  room.leave('p4');
+  assert.equal(room.phase, 'matchup', 'the rest were done');
+  const gone = room.matchups.flatMap((m) => m.answers).filter((a) => a.author === 'p4');
+  assert.ok(gone.length === 2 && gone.every((a) => a.text === NO_ANSWER));
+  toVote(ctx);
+  const voters = room.eligibleVoters();
+  room.input(voters[0], { type: 'vote', matchup: 0, choice: 'a' });
+  const author = room.matchup.answers[0].author;
+  const notVoted = voters.filter((v) => !room.matchup.votes.has(v));
+  notVoted.forEach((v) => room.leave(v));
+  assert.equal(room.step, 'reveal', 'the last voter left: reveal');
+  assert.ok(room.members.has(author) || author === 'p4');
+});
+
+test('the stinger after each matchup cycles, so everyone hears the same one', () => {
+  const ctx = startedGame(3);
+  const { room } = ctx;
+  writeAll(ctx);
+  const seen = [];
+  while (room.phase === 'matchup') {
+    if (room.step === 'reveal') seen.push(room.matchup.stinger);
+    ctx.advance(room.stepEndsAt - ctx.now());
+  }
+  assert.deepEqual(seen, [1, 2, 3]);
+});
+
+test('the comic final: about 1 game in 3, everyone captions the same Buck Ryan strip', () => {
+  const playToFinal = (options, seed) => {
+    const ctx = startedGame(3, 0, options, { seed });
+    for (let r = 1; r <= 2; r++) {
+      writeAll(ctx);
+      while (ctx.room.phase === 'matchup') ctx.advance(ctx.room.stepEndsAt - ctx.now());
+      ctx.room.nextRoundPlayers().forEach((id) => ctx.room.input(id, { type: 'nextRound', round: r }));
+    }
+    return ctx;
+  };
+  const ctx = playToFinal({ comicFinal: true });
+  const w = ctx.last('phase').data.writers;
+  assert.ok(w.every((x) => x.prompts.length === 1 && x.prompts[0].id === w[0].prompts[0].id), 'the same comic for everyone');
+  const prompt = w[0].prompts[0];
+  assert.equal(prompt.text, Prompts.COMIC_PROMPT);
+  assert.match(prompt.comic, /^img\/comics\/buck-ryan-0\d\.jpg$/);
+  assert.equal(prompt.note, 'FYI the Buck Ryan comic strip ran in the Daily Mirror from 22 March 1937 to July 1962.');
+  assert.ok(ctx.room.input('p1', { type: 'answer', promptId: prompt.id, text: 'Not the face!' }));
+  writeAll(ctx);
+  assert.equal(ctx.last('phase').data.matchup.comic, prompt.comic);
+  const normal = playToFinal({ comicFinal: false });
+  assert.equal(normal.last('phase').data.writers[0].prompts[0].comic, null);
+  let comics = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const c = makeRoom({ seed });
+    ['a', 'b', 'c'].forEach((id) => c.room.join(id));
+    c.room.start('a');
+    if (c.room.comicFinal) comics++;
+  }
+  assert.ok(comics > 70 && comics < 130, `${comics} of 300 games`);
 });

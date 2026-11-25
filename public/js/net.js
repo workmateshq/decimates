@@ -1,15 +1,15 @@
-// Peer-to-peer networking for Rapmates. No game server is needed:
+// Peer-to-peer networking for Decimates. No game server is needed:
 // - The host's browser runs the authoritative GameRoom from engine.js and registers the PeerJS
-//   id `rapmates-v1-<ROOMCODE>`, so the 4-letter room code is all mates need to connect.
+//   id `decimates-v1-<ROOMCODE>`, so the 4-letter room code is all mates need to connect.
 // - Joiners open a WebRTC data channel to the host and only send input; the host streams state back.
-// - Link rooms (e.g. /rapmates/mate): the first visitor hosts, later visitors join. If the host leaves,
+// - Link rooms (e.g. /decimates/mate): the first visitor hosts, later visitors join. If the host leaves,
 //   the remaining players hand hosting to the next player, so the room lives while anyone is in it.
 // - Clock sync: every turn is scheduled in the host's clock, so joiners keep estimating the offset
 //   between their clock and the host's (NTP-style pings, keeping the lowest round trip). net.hostNow()
 //   is the host's clock as seen from this browser.
 // The API mirrors the Socket.IO calls client.js used: net.on(event, fn) and net.emit(event, ...args, ack).
 (function () {
-  const PEER_PREFIX = 'rapmates-v1-';
+  const PEER_PREFIX = 'decimates-v1-';
   const CONNECT_TIMEOUT_MS = 12000;
   // Once the matchmaking server's answered, how long to wait for the room's host before moving on.
   const HOST_TIMEOUT_MS = 8000;
@@ -38,7 +38,7 @@
     if (iceServersPromise) return iceServersPromise;
     iceServersPromise = (async () => {
       const stun = [{ urls: 'stun:stun.l.google.com:19302' }];
-      const url = (window.RAPMATES_CONFIG || {}).turnCredentialsUrl;
+      const url = (window.DECIMATES_CONFIG || {}).turnCredentialsUrl;
       if (!url) return stun;
       try {
         const controller = new AbortController();
@@ -68,7 +68,7 @@
     const upper = String(name || '').trim().toUpperCase();
     return ROOM_NAME_RE.test(upper) ? upper : null;
   }
-  const { GameRoom, generateRoomCode } = window.RapmatesEngine;
+  const { GameRoom, generateRoomCode } = window.DecimatesEngine;
 
   // Browsers throttle timers in background tabs to ~1/s; a worker timer keeps the host's game loop at full speed.
   function createTicker() {
@@ -459,5 +459,5 @@
 
   getIceServers().then((servers) => { iceServers = servers; });
 
-  window.RapmatesNet = { createNet, normaliseRoomName, localNow };
+  window.DecimatesNet = { createNet, normaliseRoomName, localNow };
 })();
