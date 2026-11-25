@@ -1179,7 +1179,7 @@
     later((1.8 - t) * 1000, () => prompt.classList.add('docked'));
     // Answers land one after another (all together in a big final).
     // Head to head: left answer, then "OR", then the right answer (all together-ish in a big final).
-    const gap = m.final ? Math.min(0.45, 3.4 / dyns.length) : 1.4;
+    const gap = m.final ? Math.min(0.6, 4.5 / dyns.length) : 2.2;
     const or = document.querySelector('#mu-answers .mu-or');
     if (or) {
       or.classList.remove('in');

@@ -26,7 +26,7 @@
   const WRITE_GRACE_MS = 1000; // drafts sent as a player's clock hits 0 still count
   const ANSWER_MAX = 80; // characters per answer
   const NO_ANSWER = '(no answer)';
-  const SHOW_MS = 6500; // the prompt, then answer A, then answer B
+  const SHOW_MS = 9500; // the prompt, then answer A, OR, answer B, and a few seconds to read them before the vote
   const VOTE_SECONDS = 15;
   const FINAL_VOTE_SECONDS = 30;
   const FINAL_PICKS = 3; // votes each in the final
