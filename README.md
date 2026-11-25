@@ -59,7 +59,7 @@ The final has no clean-sweep bonus. The player with the most points at the end w
 
 All the prompts, stock jokes and comic settings are in [`public/js/prompts.js`](public/js/prompts.js):
 
-- **252 original fill-in-the-blank prompts**: everything from safe-for-work office humour to the downright silly and the slightly cheeky.
+- **303 fill-in-the-blank prompts**: everything from safe-for-work office humour to the downright silly and the slightly cheeky.
 - **50 stock jokes** for the **Stock joke** button.
 - **The comics**: 9 *Buck Ryan* strips in [`public/img/comics/`](public/img/comics/).
 

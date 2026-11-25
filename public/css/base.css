@@ -37,7 +37,7 @@ body {
 
 /* ---------- The hypnotic spiral (drawn by client.js) ---------- */
 .hypno { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; color: rgba(255, 236, 220, 0.035); }
-.hypno svg { position: absolute; left: 50%; top: 50%; width: 260vmax; height: 260vmax; translate: -50% -50%; animation: hypno 22s linear infinite; will-change: transform; }
+.hypno svg { position: absolute; left: 50%; top: 50%; width: 260vmax; height: 260vmax; translate: -50% -50%; animation: hypno 12s linear infinite; will-change: transform; }
 @keyframes hypno { to { transform: rotate(360deg); } }
 body::after {
   content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
