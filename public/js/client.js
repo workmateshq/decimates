@@ -338,7 +338,9 @@
   // fuse poking out of one of them. The joke's label sits between the sausages and the ropes
   // (dynamiteRopes is drawn over it).
   const INK = '#1d1410';
-  const DYN_STICKS = [[124, 64, 388], [128, 170, 390], [100, 114, 380], [146, 124, 392]]; // [left end x, centre y, right end x]
+  // [left end x, centre y]; every sausage is the same length and thickness.
+  const DYN_LENGTH = 250;
+  const DYN_STICKS = [[124, 64], [128, 170], [100, 114], [140, 124]].map(([x0, cy]) => [x0, cy, x0 + DYN_LENGTH]);
   const DYN_FUSE = 'M16 62 C 30 46, 46 84, 60 92 S 76 108, 86 112';
   function dynStick([x0, cy, x1], r = 30, e = 24) {
     // A sausage: a capsule with plump rounded ends, a glossy sheen and a few grill marks.
