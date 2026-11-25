@@ -152,6 +152,12 @@
 /* The winning label in the middle of the screen, then who wrote it and the points. */
 .flyer { position: fixed; left: 50%; top: 50%; z-index: 45; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 16px; pointer-events: none; width: min(620px, 92vw); }
 .flyer.show { display: flex; }
+.flyer.below { top: auto; bottom: 20px; transform: translate(-50%, 0); gap: 8px; }
+.flyer.below .fly-kicker { padding: 3px 12px; font-size: 13px; }
+.flyer.below .fly-card { gap: 6px; }
+.flyer.below .fly-card .dyn-label { padding: 14px 20px; font-size: clamp(20px, 2.6vw, 28px); }
+.flyer.below .fly-by { font-size: 15px; padding: 3px 12px 3px 3px; }
+.flyer.below .fly-by .av { width: 28px; height: 28px; }
 .fly-kicker { font-size: 14px; font-weight: 800; color: var(--ink); background: var(--gold); padding: 5px 14px; border-radius: 999px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35); }
 .fly-card { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
 .fly-card .dyn-label {

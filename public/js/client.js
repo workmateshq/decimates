@@ -1453,6 +1453,8 @@
   // it and the points. from: where each label was on its bundle (screen rects), to animate from.
   function showFlyer(m, winners, from) {
     const flyer = $('flyer');
+    // With a comic, the winner sits at the bottom of the screen (under the docked comic) so the strip stays visible.
+    flyer.classList.toggle('below', !!m.comic);
     const cards = winners.map((i) => {
       const a = m.answers[i];
       const pts = m.practice ? '' : ` <b>+${a.points || 0}</b>`;
