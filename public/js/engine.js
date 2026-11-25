@@ -31,7 +31,7 @@
   const FINAL_VOTE_SECONDS = 30;
   const FINAL_PICKS = 3; // votes each in the final
   const VOTES_IN_MS = 1500; // after the last vote lands, a beat so everyone sees it before the reveal
-  const WINNER_VOS = 3; // sound/winner-vo-01..03.mp3, one picked by the host at the end of each game
+  const WINNER_VOS = 3; // sound/winner-vo-01..03.mp3, rotated by the host game by game (01, 02, 03, 01...)
   const REVEAL_MS = 8000; // authors, the vote split and the explosion
   const SWEEP_REVEAL_MS = 10000; // a little longer for a clean sweep
   const POINTS_PER_VOTE = 100; // x the round number
@@ -554,7 +554,7 @@
       this.started = false;
       this.phase = 'results';
       this.fillSlots();
-      this.broadcast('gameOver', { game: this.game, winnerVo: randInt(WINNER_VOS, this.random) + 1, ...standingsOf([...this.totals.values()]) });
+      this.broadcast('gameOver', { game: this.game, winnerVo: ((this.winnerVoCount = (this.winnerVoCount || 0) + 1) - 1) % WINNER_VOS + 1, ...standingsOf([...this.totals.values()]) });
       this.broadcastLobby();
     }
 
