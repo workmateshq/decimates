@@ -1178,7 +1178,17 @@
     }
     later((1.8 - t) * 1000, () => prompt.classList.add('docked'));
     // Answers land one after another (all together in a big final).
-    const gap = m.final ? Math.min(0.45, 3.4 / dyns.length) : 1.2;
+    // Head to head: left answer, then "OR", then the right answer (all together-ish in a big final).
+    const gap = m.final ? Math.min(0.45, 3.4 / dyns.length) : 1.4;
+    const or = document.querySelector('#mu-answers .mu-or');
+    if (or) {
+      or.classList.remove('in');
+      const at = 2.2 + gap / 2;
+      later((at - t) * 1000, () => {
+        or.classList.add('in');
+        if (at - t > -0.2) playSfx('pop');
+      });
+    }
     dyns.forEach((d, i) => {
       const at = 2.2 + i * gap;
       later((at - t) * 1000, () => {
@@ -1200,6 +1210,7 @@
 
   function runVote(m) {
     $('mu-prompt').classList.add('docked');
+    document.querySelectorAll('#mu-answers .mu-or').forEach((o) => o.classList.add('in'));
     const dyns = [...document.querySelectorAll('#mu-answers .dyn')];
     dyns.forEach((d) => d.classList.add('in', 'lit'));
     $('mu-answers').classList.add('voting');

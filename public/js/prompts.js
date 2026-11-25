@@ -278,7 +278,7 @@
     'Finish the lyrics: "Sweet Caroline, bah, bah, bah, good times never seemed ___"',
     'Finish the lyrics: "I\'m gonna take my horse to the old town road, I\'m gonna ___"',
     'Finish the lyrics: "Hello darkness, my old friend, I\'ve come to ___"',
-    'Finish the lyrics: "Ooh, we\'re halfway there, ooh, livin\' on a ___"',
+    'Finish the lyrics: "Oh, we\'re halfway there, oh, livin\' on a ___"',
     'Finish the lyrics: "You are the dancing queen, young and sweet, only ___"',
     'Finish the lyrics: "Despite all my rage, I am still just ___"',
     'Finish the lyrics: "Country roads, take me home, to the place ___"',
