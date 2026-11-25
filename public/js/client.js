@@ -484,7 +484,8 @@
     $('setup-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
-    ['intro-vo', 'final-round-vo', 'explosion', 'golf-clap', 'winner-vo-01', 'winner-vo-02', 'winner-vo-03'].forEach(loadSample);
+    ['intro-vo', 'final-round-vo', 'explosion', 'golf-clap'].forEach(loadSample);
+    for (let n = 1; n <= Engine.WINNER_VOS; n++) loadSample(`winner-vo-0${n}`);
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -1586,7 +1587,7 @@
     const a = getAudioCtx();
     if (!a) return;
     if (a.state !== 'running') await a.resume().catch(() => {});
-    const voName = n ? `winner-vo-0${Math.min(3, Math.max(1, n))}` : null;
+    const voName = n ? `winner-vo-0${Math.min(Engine.WINNER_VOS, Math.max(1, n))}` : null;
     const [clap, vo] = await Promise.all([loadSample('golf-clap'), voName ? loadSample(voName) : null]);
     if (token !== podiumToken || a.state !== 'running') return;
     const t = a.currentTime + 0.05;

@@ -85,7 +85,7 @@ There is no game server. Decimates is peer-to-peer, so it runs on any static hos
 - **Safety**: the host sanitises and limits every answer, and every screen escapes answers before showing them.
 - **Connections**: players connect over WebRTC with [PeerJS](https://peerjs.com/) ([`public/js/net.js`](public/js/net.js)). For networks that can't connect directly, add a TURN relay in [`public/js/config.js`](public/js/config.js).
 - **Audio**: one `AudioContext` with a sound-effect gain and toggle (no background music yet).
-  - At the podium a golf clap plays ([`public/sound/golf-clap.mp3`](public/sound/golf-clap.mp3)), then a couple of seconds later a winner voiceover (`winner-vo-01..03.mp3`, rotated game by game by the host so everyone hears the same one) while the clap dips under it. Solo games get the clap only.
+  - At the podium a golf clap plays ([`public/sound/golf-clap.mp3`](public/sound/golf-clap.mp3)), then a couple of seconds later a winner voiceover (`winner-vo-01..04.mp3`, rotated game by game by the host so everyone hears the same one) while the clap dips under it. Solo games get the clap only.
   - The explosion is a recording ([`public/sound/explosion.mp3`](public/sound/explosion.mp3)), loaded when you join a room. The other effects (whistle, boing, the fizzing, crackling fuse) are synthesised in the browser.
   - The announcer uses `speechSynthesis` and follows the sound-effects toggle.
 

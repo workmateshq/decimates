@@ -425,15 +425,15 @@ test('the comic final: about 1 game in 3, everyone captions the same Buck Ryan s
   assert.ok(comics > 70 && comics < 130, `${comics} of 300 games`);
 });
 
-test('the end of the game: winner voiceovers rotate 1, 2, 3, 1... so everyone hears the same one', () => {
+test('the end of the game: winner voiceovers rotate 1, 2, 3, 4, 1... so everyone hears the same one', () => {
   const ctx = startedGame(3);
   const seen = [];
-  for (let g = 0; g < 4; g++) {
+  for (let g = 0; g < 5; g++) {
     if (g) assert.ok(ctx.room.start('p1'));
     ctx.room.endGame();
     seen.push(ctx.last('gameOver').data.winnerVo);
   }
-  assert.deepEqual(seen, [1, 2, 3, 1]);
+  assert.deepEqual(seen, [1, 2, 3, 4, 1]);
 });
 
 test('comic finals: every Buck Ryan strip gets a go before any repeats', () => {
