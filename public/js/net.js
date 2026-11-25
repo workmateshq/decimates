@@ -12,7 +12,8 @@
   const PEER_PREFIX = 'decimates-v1-';
   const CONNECT_TIMEOUT_MS = 12000;
   // Once the matchmaking server's answered, how long to wait for the room's host before moving on.
-  const HOST_TIMEOUT_MS = 8000;
+  const HOST_TIMEOUT_MS = 12000;
+  const HOST_RETRIES = 1; // a fresh attempt before giving up on a host: first tries sometimes just miss
   const GIVE_UP_MS = 60000;   // the longest anyone's left on "Connecting..."
   const SERVER_UNREACHABLE =
     "Couldn't reach the PeerJS matchmaking server. A work network, VPN or ad blocker may be blocking it.";
@@ -32,12 +33,18 @@
   };
   const ROOM_NAME_RE = /^[A-Z0-9](?:[A-Z0-9-]{0,14}[A-Z0-9])$/;
 
-  // ICE servers: Google STUN for direct connections, plus TURN relays from config.js when configured.
+  // ICE servers: STUN from a few providers (so one being blocked or slow doesn't stop direct connections),
+  // plus TURN relays from config.js when configured. Four URLs at most; more slows down discovery.
+  const STUN = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ];
   let iceServersPromise = null;
   function getIceServers() {
     if (iceServersPromise) return iceServersPromise;
     iceServersPromise = (async () => {
-      const stun = [{ urls: 'stun:stun.l.google.com:19302' }];
+      const stun = STUN;
       const url = (window.DECIMATES_CONFIG || {}).turnCredentialsUrl;
       if (!url) return stun;
       try {
@@ -55,7 +62,7 @@
     return iceServersPromise;
   }
   let iceServers = null;
-  const peerOptions = () => ({ debug: 0, config: { iceServers: iceServers || [{ urls: 'stun:stun.l.google.com:19302' }] } });
+  const peerOptions = () => ({ debug: 0, config: { iceServers: iceServers || STUN, iceCandidatePoolSize: 4 } });
 
   // A monotonic wall clock in ms: comparable between browsers (both near Unix time) and never jumps back.
   const localNow = () => performance.timeOrigin + performance.now();
@@ -307,6 +314,18 @@
       });
     }
 
+    // Join by code; if the room's there but its host didn't answer, try once more with a fresh connection.
+    function joinWithRetry(code, ack, preferredName, mine, retries = HOST_RETRIES) {
+      joinRoom(code, (res) => {
+        if (mine !== attempt) return;
+        if (!res.ok && res.timeout === 'host' && retries > 0) {
+          dispatch('status', "Couldn't reach the host yet. Trying again...");
+          return setTimeout(() => { if (mine === attempt) joinWithRetry(code, ack, preferredName, mine, retries - 1); }, 600);
+        }
+        ack(res);
+      }, preferredName);
+    }
+
     // ---------- Clock sync (clients) ----------
 
     // Pings the host a few times straight away, then every few seconds. Each answer gives an offset
@@ -337,7 +356,7 @@
 
     // Join the room if someone is hosting it, otherwise become its host. If the room's host can't be
     // reached, move on to the next backup slot rather than giving up.
-    function enterRoom(code, ack, preferredName, deadline = Date.now() + ENTER_ROOM_DEADLINE_MS, slot = 1, mine = attempt) {
+    function enterRoom(code, ack, preferredName, deadline = Date.now() + ENTER_ROOM_DEADLINE_MS, slot = 1, mine = attempt, retries = HOST_RETRIES) {
       const stale = () => mine !== attempt;
       if (stale()) return;
       const peerCode = slotCode(code, slot);
@@ -345,13 +364,17 @@
         if (stale()) return;
         if (slot >= MAX_ROOM_SLOTS) return ack({ ok: false, error: HOST_UNREACHABLE });
         dispatch('status', "Couldn't reach the room's host. Opening a backup room...");
-        enterRoom(code, ack, preferredName, Date.now() + ENTER_ROOM_DEADLINE_MS, slot + 1, mine);
+        enterRoom(code, ack, preferredName, Date.now() + ENTER_ROOM_DEADLINE_MS, slot + 1, mine, HOST_RETRIES);
       };
       joinRoom(peerCode, (res) => {
         if (stale()) return;
         // Success, a real refusal (e.g. full), or PeerJS itself unreachable: nothing more to try.
         if (res.ok || res.timeout === 'server' || !(res.notFound || res.timeout)) return ack(res);
-        // Someone holds this slot but we can't reach them: skip it.
+        // Someone holds this slot but we can't reach them: try once more, then skip it.
+        if (res.timeout === 'host' && retries > 0) {
+          dispatch('status', "Couldn't reach the room's host yet. Trying again...");
+          return setTimeout(() => enterRoom(code, ack, preferredName, deadline, slot, mine, retries - 1), 600);
+        }
         if (res.timeout === 'host') return nextSlot();
         createRoom((hostRes) => {
           if (stale()) return;
@@ -414,7 +437,7 @@
           ack({ ok: false, error: "Couldn't get into the room. Check your connection, then try again or enter a code." });
         }, GIVE_UP_MS);
         if (ev === 'createRoom') return createRoom(answer, 0, null, myName);
-        if (ev === 'joinRoom') return joinRoom(String(args[0] || '').trim().toUpperCase(), answer, myName);
+        if (ev === 'joinRoom') return joinWithRetry(String(args[0] || '').trim().toUpperCase(), answer, myName, mine);
         if (ev === 'enterRoom') {
           const name = normaliseRoomName(args[0]);
           if (!name) return answer({ ok: false, error: 'Room names are 2-16 letters, numbers or dashes.' });
