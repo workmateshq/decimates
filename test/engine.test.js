@@ -435,3 +435,18 @@ test('the end of the game: winner voiceovers rotate 1, 2, 3, 1... so everyone he
   }
   assert.deepEqual(seen, [1, 2, 3, 1]);
 });
+
+test('comic finals: every Buck Ryan strip gets a go before any repeats', () => {
+  const ctx = makeRoom();
+  ['a', 'b', 'c'].forEach((id) => ctx.room.join(id));
+  const { room } = ctx;
+  const seen = [];
+  for (let g = 0; g < Prompts.COMICS.length; g++) {
+    assert.ok(room.start('a', { comicFinal: true }));
+    room.round = 2;
+    room.beginWrite(false);
+    seen.push(room.entries.get('a').prompts[0]);
+    room.endGame();
+  }
+  assert.equal(new Set(seen).size, Prompts.COMICS.length);
+});

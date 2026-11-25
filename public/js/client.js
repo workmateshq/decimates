@@ -1573,16 +1573,24 @@
   const WINNER_VO_DELAY = 2.2;
   let podiumSounds = [];
   function stopPodiumSounds() {
+    podiumToken += 1;
     podiumSounds.forEach((s) => { try { s.stop(); } catch { /* done */ } });
     podiumSounds = [];
   }
-  function playWinnerSounds(n) {
-    if (!ac || ac.state !== 'running') return;
+  // Waits for the clap and voiceover if they're still loading, and wakes the audio up if the browser paused it,
+  // so the voiceover always plays (as long as sound effects are on).
+  let podiumToken = 0;
+  async function playWinnerSounds(n) {
     stopPodiumSounds();
-    const clap = samples['golf-clap'];
-    const vo = n ? samples[`winner-vo-0${Math.min(3, Math.max(1, n))}`] : null;
-    const t = ac.currentTime + 0.05;
-    const clapGain = ac.createGain();
+    const token = ++podiumToken;
+    const a = getAudioCtx();
+    if (!a) return;
+    if (a.state !== 'running') await a.resume().catch(() => {});
+    const voName = n ? `winner-vo-0${Math.min(3, Math.max(1, n))}` : null;
+    const [clap, vo] = await Promise.all([loadSample('golf-clap'), voName ? loadSample(voName) : null]);
+    if (token !== podiumToken || a.state !== 'running') return;
+    const t = a.currentTime + 0.05;
+    const clapGain = a.createGain();
     clapGain.connect(sfxGain);
     if (vo) {
       const v = t + WINNER_VO_DELAY;
@@ -1591,7 +1599,7 @@
     }
     [[clap, t, clapGain], [vo, t + WINNER_VO_DELAY, sfxGain]].forEach(([buf, at, dest]) => {
       if (!buf) return;
-      const src = ac.createBufferSource();
+      const src = a.createBufferSource();
       src.buffer = buf;
       src.connect(dest);
       src.start(at);

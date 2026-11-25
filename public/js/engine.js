@@ -331,7 +331,9 @@
       if (!writers.length) return this.endGame();
       this.round += 1;
       if (this.isFinal) {
-        const p = this.comicFinal ? `comic:${randInt(Prompts.COMICS.length, this.random)}` : this.drawPrompt();
+        // Comics come from a shuffled deck, so none repeats until every strip has had a go.
+        if (this.comicFinal && !(this.comicDeck && this.comicDeck.length)) this.comicDeck = Prompts.shuffledIndexes(Prompts.COMICS.length, this.random);
+        const p = this.comicFinal ? `comic:${this.comicDeck.shift()}` : this.drawPrompt();
         this.entries = new Map(writers.map((id) => [id, { prompts: [p], answers: {}, done: false }]));
       } else {
         const prompts = Array.from({ length: Math.max(PROMPTS_PER_PLAYER, writers.length) }, () => this.drawPrompt());
