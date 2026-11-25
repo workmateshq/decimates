@@ -408,6 +408,7 @@
     $('setup-view').style.display = 'none';
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
+    loadIntroVo();
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -749,16 +750,29 @@
     }
   }
 
-  // ---------- Intro: how to play, read out by the announcer ----------
-  // `at` is when each rule appears (seconds into the intro).
+  // ---------- Intro: how to play, over the voiceover (sound/intro-vo.mp3) ----------
+  // `at` is when each rule appears (seconds into the intro), lined up with the pauses in the voiceover.
   const INTRO_RULES = [
-    [0.8, 'Each round you get 2 prompts. Write the funniest answer you can.'],
-    [4.2, 'Stuck? Hit "Stock joke" for an emergency gag.'],
-    [7.2, 'Every prompt goes head to head: two jokes, one fuse.'],
-    [10.0, 'Everyone else votes for their favourite, and the winner blows up!'],
-    [13.0, 'Points for every vote. Win them all for a clean sweep bonus.'],
+    [7.2, "You'll get a series of goofy prompts."],
+    [10.1, 'Type whatever will tickle the most funny bones.'],
+    [14.0, 'Your answers go head to head, and everyone else votes for their favourite.'],
+    [21.3, 'Decimate the room to win the round.'],
+    [26.5, 'No wrong answers... just bad jokes.'],
   ];
-  const INTRO_CTA = [15.6, 'Light the fuse!'];
+  const INTRO_CTA = [28.5, '90 seconds on the clock. Ready?'];
+  // The voiceover is fetched and decoded as soon as you're in a room, so it's ready when a game starts.
+  const introVo = { buf: null, loading: null };
+  function loadIntroVo() {
+    if (introVo.loading) return introVo.loading;
+    const a = getAudioCtx();
+    if (!a) return Promise.resolve(null);
+    introVo.loading = fetch('sound/intro-vo.mp3')
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then((ab) => new Promise((res, rej) => a.decodeAudioData(ab, res, rej)))
+      .then((b) => { introVo.buf = b; return b; })
+      .catch(() => { introVo.loading = null; return null; });
+    return introVo.loading;
+  }
   let intro = null;
   function showIntro(p) {
     const key = `${p.introStartedAt}`;
@@ -778,18 +792,36 @@
     void bar.offsetWidth;
     bar.style.transition = `width ${Math.max(0, total - elapsed).toFixed(2)}s linear`;
     bar.style.width = '100%';
-    intro = { key, timers: [] };
-    [...INTRO_RULES, INTRO_CTA].forEach(([at, text]) => {
-      if (at < elapsed - 0.5) return;
-      intro.timers.push(setTimeout(() => say(text, { rate: 1.08 }), Math.max(0, at - elapsed) * 1000));
+    intro = { key, src: null, gain: null };
+    const mine = intro;
+    hush();
+    loadIntroVo().then((buf) => {
+      const a = getAudioCtx();
+      if (intro !== mine || !buf || !a) return;
+      // Late joiners (and a slow decode) pick the voiceover up at the right point.
+      const offset = Math.max(0, (net.hostNow() - p.introStartedAt) / 1000);
+      if (offset >= buf.duration - 0.3) return;
+      const src = a.createBufferSource();
+      src.buffer = buf;
+      const g = a.createGain();
+      g.gain.value = 1.15;
+      src.connect(g).connect(sfxGain);
+      src.start(a.currentTime + 0.02, offset);
+      mine.src = src;
+      mine.gain = g;
     });
   }
   function hideIntro() {
     $('intro-overlay').classList.remove('show');
     if (!intro) return;
-    intro.timers.forEach((t) => clearTimeout(t));
+    const { src, gain } = intro;
+    if (src && ac) {
+      const n = ac.currentTime;
+      gain.gain.setValueAtTime(gain.gain.value, n);
+      gain.gain.linearRampToValueAtTime(0.0001, n + 0.25);
+      try { src.stop(n + 0.3); } catch { /* already stopped */ }
+    }
     intro = null;
-    hush();
   }
   $('intro-skip').addEventListener('click', () => {
     $('intro-skip').disabled = true;
@@ -1449,7 +1481,7 @@
     setTimeout(() => box.replaceChildren(), 5600);
   }
 
-  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu };
+  if (DEBUG) window.__decimatesDebug = { state, net, getAudioCtx, explode, showFlyer, mu, introVo, get intro() { return intro; } };
 
   buildSlots();
   renderSlots();

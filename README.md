@@ -11,7 +11,7 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 - **Starting**: like Rapmates, a room can start with just you (practice) or up to 8 players. The host presses start.
 - **Practice**: when nobody else can vote on a matchup (playing alone, or 2 players with no crowd), voting is skipped and every answer goes off for no points.
 - **Look**: dark panels over a slow hypnotic spiral. Each joke is a paper label tied to a bundle of dynamite; its fuse burns down with the vote clock.
-- **Intro**: every game opens with a short "How to play" screen. The host can skip it.
+- **Intro**: every game opens with a 33-second "How to play" screen. A voiceover ([`public/sound/intro-vo.mp3`](public/sound/intro-vo.mp3)) explains the rules while bullet points appear in time with it. It plays through the sound-effects toggle, and late joiners pick it up part-way through. The host can skip it.
 
 ### Rounds 1 and 2: head to head
 
@@ -96,6 +96,7 @@ public/
   css/              base.css, lobby.css, game.css, matchup.css, overlays.css (loaded in that order)
   js/               config.js, prompts.js, engine.js, net.js, client.js
   img/comics/       Buck Ryan strips for the comic final
+  sound/            the intro voiceover
 test/               node --test suite for the engine and prompts
 ```
 

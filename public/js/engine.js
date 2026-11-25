@@ -37,7 +37,7 @@
   const STINGERS = 8; // end-of-matchup announcer lines, cycled (the host picks, so everyone hears the same one)
   const STANDINGS_MS = 8000; // the final scoreboard, before the podium
   const NEXT_ROUND_SECONDS = 30; // between rounds: players press "Play next round"; whoever has by then plays on
-  const INTRO_MS = 18000; // the how-to-play screen at the start of a game (the host can skip it)
+  const INTRO_MS = 33000; // the how-to-play screen (the 32 s voiceover, sound/intro-vo.mp3); the host can skip it
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
   // Cartoon paint-box colours, one per seat.
   const PLAYER_COLORS = ['#E8432E', '#2E7DD7', '#F5B400', '#3BA55C', '#9B59D0', '#EE7A1F', '#E64E9B', '#1FA9A0'];
