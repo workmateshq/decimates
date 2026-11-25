@@ -30,6 +30,7 @@
   const VOTE_SECONDS = 15;
   const FINAL_VOTE_SECONDS = 30;
   const FINAL_PICKS = 3; // votes each in the final
+  const VOTES_IN_MS = 1500; // after the last vote lands, a beat so everyone sees it before the reveal
   const REVEAL_MS = 8000; // authors, the vote split and the explosion
   const SWEEP_REVEAL_MS = 10000; // a little longer for a clean sweep
   const POINTS_PER_VOTE = 100; // x the round number
@@ -207,7 +208,7 @@
         if (this.allWritten()) this.beginMatchups();
         else this.broadcastPhase();
       } else if (this.phase === 'matchup' && this.step === 'vote') {
-        if (this.allVoted()) this.reveal();
+        if (this.allVoted()) this.votesIn();
         else this.broadcastPhase();
       } else if (this.phase === 'standings' && this.round < ROUNDS) {
         const left = this.nextRoundPlayers();
@@ -448,9 +449,15 @@
         picks = [i];
       }
       m.votes.set(id, picks);
-      if (this.allVoted()) this.reveal();
+      if (this.allVoted()) this.votesIn();
       else this.broadcastPhase();
       return true;
+    }
+
+    // Everyone's voted: the vote step ends shortly, so the last voter's badge is seen landing first.
+    votesIn() {
+      this.stepEndsAt = Math.min(this.stepEndsAt, this.now() + VOTES_IN_MS);
+      this.broadcastPhase();
     }
 
     allVoted() {
@@ -667,6 +674,7 @@
     FINAL_VOTE_SECONDS,
     FINAL_PICKS,
     REVEAL_MS,
+    VOTES_IN_MS,
     SWEEP_REVEAL_MS,
     POINTS_PER_VOTE,
     CLEAN_SWEEP_BONUS,

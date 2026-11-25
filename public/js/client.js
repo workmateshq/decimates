@@ -1114,9 +1114,8 @@
       el.dataset.i = i;
       el.disabled = true;
       el.innerHTML = `<span class="dyn-art">${dynamiteSvg()}
-        <span class="dyn-label${a.empty ? ' empty' : ''}${a.text.length > 58 ? ' longer' : a.text.length > 34 ? ' long' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>${dynamiteRopes()}</span>
+        <span class="dyn-label${a.empty ? ' empty' : ''}${a.text.length > 58 ? ' longer' : a.text.length > 34 ? ' long' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>${dynamiteRopes()}<span class="dyn-voters"></span></span>
         <span class="dyn-letter">${m.final ? i + 1 : 'AB'[i]}</span>
-        <span class="dyn-voters"></span>
         <span class="dyn-author"></span>
         <span class="dyn-points"></span>`;
       el.addEventListener('click', () => pick(i));
@@ -1232,7 +1231,7 @@
       if (box.dataset.ids === ids) return;
       const before = box.dataset.ids ? box.dataset.ids.split(',').filter(Boolean).length : 0;
       box.dataset.ids = ids;
-      box.innerHTML = a.voters.map((v, k) => `<span class="voter${k >= before ? ' new' : ''}" title="${esc(v.name)}">${avatarImg(v.name, '', v.color)}<b>${esc(nameOf(v))}</b></span>`).join('');
+      box.innerHTML = a.voters.map((v, k) => `<span class="voter${k >= before ? ' new' : ''}" title="${esc(v.name)}" style="--pc:${v.color}">${avatarImg(v.name, '', v.color)}<b>${esc(nameOf(v))}</b></span>`).join('');
       if (a.voters.length > before && m.step === 'vote') playSfx('pop');
     });
     const voters = m.voters || [];

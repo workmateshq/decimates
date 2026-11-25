@@ -5,7 +5,7 @@ const Prompts = require('../public/js/prompts.js');
 
 const {
   GameRoom, generateRoomCode, ringDeal, scoreMatchup, sanitizeAnswer, sanitizeName, NAME_MAX, ANSWER_MAX, NO_ANSWER,
-  WRITE_SECONDS, WRITE_GRACE_MS, SHOW_MS, VOTE_SECONDS, FINAL_VOTE_SECONDS, REVEAL_MS, SWEEP_REVEAL_MS, CLEAN_SWEEP_BONUS,
+  WRITE_SECONDS, WRITE_GRACE_MS, SHOW_MS, VOTES_IN_MS, VOTE_SECONDS, FINAL_VOTE_SECONDS, REVEAL_MS, SWEEP_REVEAL_MS, CLEAN_SWEEP_BONUS,
   NEXT_ROUND_SECONDS, STANDINGS_MS, INTRO_MS, FINAL_INTRO_MS, ROUNDS, MAX_PLAYERS, MIN_PLAYERS, STINGERS,
 } = E;
 
@@ -222,7 +222,10 @@ test('a matchup: show, then vote (authors can\'t), then reveal with points; vote
   assert.deepEqual(live.answers[0].voters.map((v) => v.id), [others[0]], 'voter avatars appear on the answer');
   assert.equal(live.answers[0].author, null);
   room.input(others[1], { type: 'vote', matchup: 0, choice: 'b' });
-  assert.equal(room.step, 'reveal', 'everyone voted: reveal early');
+  assert.equal(room.step, 'vote', 'everyone voted: a beat to see the last vote land');
+  assert.equal(ctx.last('phase').data.matchup.answers[1].voters.length, 1);
+  ctx.advance(VOTES_IN_MS);
+  assert.equal(room.step, 'reveal', 'then the reveal, early');
   const r = ctx.last('phase').data.matchup;
   assert.deepEqual(r.answers.map((a) => a.author.id), authors);
   assert.deepEqual(r.answers.map((a) => a.points), [100, 100], 'round 1: 100 per vote');
@@ -249,6 +252,7 @@ test('scoring: votes x 100 x round; a clean sweep earns the bonus; nobody votes,
   const authors = room.matchup.answers.map((a) => a.author);
   const voters = room.eligibleVoters();
   voters.forEach((v) => room.input(v, { type: 'vote', matchup: 0, choice: 'b' }));
+  ctx.advance(VOTES_IN_MS);
   assert.equal(room.matchup.result.cleanSweep, true);
   assert.equal(room.totals.get(authors[1]).total, 200 + CLEAN_SWEEP_BONUS);
   assert.equal(room.stepEndsAt - ctx.now(), SWEEP_REVEAL_MS, 'a longer reveal for the clean sweep');
@@ -271,6 +275,7 @@ test('a full round: every matchup, then the scoreboard waits up to 30 s for "Pla
     assert.equal(room.mu, i);
     toVote(ctx);
     room.eligibleVoters().forEach((v) => room.input(v, { type: 'vote', matchup: i, choice: 'a' }));
+    ctx.advance(VOTES_IN_MS);
     ctx.advance(room.stepEndsAt - ctx.now());
   }
   assert.equal(room.phase, 'standings');
@@ -340,6 +345,7 @@ test('the final (round 3): everyone answers the same prompt and votes for up to 
   ['c1', 'p3', 'p4'].forEach((v) => room.input(v, { type: 'vote', matchup: 0, choices: [p2] }));
   const before = room.totals.get('p2').total;
   room.input('p2', { type: 'vote', matchup: 0, choices: [authorIdx(ctx, 'p3')] });
+  ctx.advance(VOTES_IN_MS);
   assert.equal(room.step, 'reveal');
   assert.equal(room.totals.get('p2').total - before, 4 * 100 * 3, '4 votes x 100 x round 3');
   assert.equal(room.matchup.result.cleanSweep, false, 'no clean sweep in the final');
@@ -370,6 +376,7 @@ test('leavers: mid-write their answers become "(no answer)"; an author leaving m
   const author = room.matchup.answers[0].author;
   const notVoted = voters.filter((v) => !room.matchup.votes.has(v));
   notVoted.forEach((v) => room.leave(v));
+  ctx.advance(VOTES_IN_MS);
   assert.equal(room.step, 'reveal', 'the last voter left: reveal');
   assert.ok(room.members.has(author) || author === 'p4');
 });

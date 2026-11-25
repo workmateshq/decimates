@@ -75,10 +75,21 @@
   position: absolute; top: 2px; left: 2px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
   font-size: 14px; font-weight: 900; color: var(--text); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2);
 }
-.dyn-voters { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; min-height: 30px; }
-.voter { display: inline-flex; align-items: center; gap: 5px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; padding: 3px 9px 3px 3px; font-size: 12px; font-weight: 700; }
-.voter .av { width: 22px; height: 22px; }
-.voter.new { animation: pop-in 0.35s var(--ease); }
+/* Voters' badges land on the answer they picked, live, as each vote comes in. */
+.dyn-voters {
+  position: absolute; left: 63%; bottom: -6%; transform: translateX(-50%); width: 96%;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; pointer-events: none; z-index: 2;
+}
+.voter {
+  display: inline-flex; align-items: center; gap: 6px; background: #fffdf8; color: var(--ink);
+  border-radius: 999px; padding: 3px 11px 3px 3px; font-size: 14px; font-weight: 800;
+  box-shadow: 0 0 0 2px var(--pc, var(--gold)), 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.voter .av { width: 28px; height: 28px; box-shadow: none; }
+.voter.new { animation: vote-land 0.5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes vote-land { from { transform: translateY(-36px) scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.mu-answers.final .voter { font-size: 12px; padding: 2px 8px 2px 2px; }
+.mu-answers.final .voter .av { width: 22px; height: 22px; }
 .dyn-author, .dyn-points { display: none; }
 
 /* Voting: the bundles are buttons; your picks get a gold outline. */
