@@ -281,14 +281,13 @@
   // A bundle of dynamite: four sticks seen from the fuse end, tied with two loops of rope, and a fuse with a
   // spark. The joke's label sits between the sticks and the ropes (dynamiteRopes is drawn over it).
   const INK = '#1d1410';
-  const DYN_STICKS = [[128, 64, 388], [134, 170, 392], [100, 114, 374], [150, 126, 396]]; // [left end x, centre y, right end x]
+  const DYN_STICKS = [[124, 64, 392], [128, 170, 392], [100, 114, 384], [146, 124, 392]]; // [left end x, centre y, right end x]
   const DYN_FUSE = 'M16 62 C 30 46, 46 84, 62 92 S 88 110, 101 114';
   function dynStick([x0, cy, x1], r = 30, e = 13) {
-    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#d9402c" stroke="${INK}" stroke-width="3"/>
-      <path d="M${x0 + 20} ${cy + r * 0.62}H${x1 - 2}" stroke="#ad2c1c" stroke-width="10" stroke-linecap="round"/>
-      <path d="M${x0 + 22} ${cy - r * 0.52}H${x1 - 6}" stroke="#ee7058" stroke-width="5" stroke-linecap="round" opacity=".85"/>
-      <ellipse cx="${x0}" cy="${cy}" rx="${e}" ry="${r}" fill="#c63823" stroke="${INK}" stroke-width="3"/>
-      <ellipse cx="${x0 + 2}" cy="${cy}" rx="${e - 5}" ry="${r - 8}" fill="#8a2215" stroke="${INK}" stroke-width="1.6"/>`;
+    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#d9402c" stroke="${INK}" stroke-width="2.6"/>
+      <path d="M${x0 + 22} ${cy - r * 0.5}H${x1 - 6}" stroke="#ec6a53" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      <ellipse cx="${x0}" cy="${cy}" rx="${e}" ry="${r}" fill="#c23722" stroke="${INK}" stroke-width="2.6"/>
+      <ellipse cx="${x0 + 1.5}" cy="${cy}" rx="${e - 5}" ry="${r - 9}" fill="#8f2416"/>`;
   }
   function dynamiteSvg() {
     const sparks = Array.from({ length: 9 }, (_, i) => {
@@ -312,13 +311,13 @@
       </g>
     </svg>`;
   }
-  // The two loops of rope, over the label.
+  // A rope strap down each edge of the label, over it.
   function dynamiteRopes() {
-    const rope = (x) => [0, 7].map((o) => {
-      const d = `M${x + o} 30C${x + o + 10} 70, ${x + o + 10} 168, ${x + o} 208`;
-      return `<path d="${d}" stroke="${INK}" stroke-width="7"/><path d="${d}" stroke="#cfa86a" stroke-width="4.6"/><path d="${d}" stroke="#9a7442" stroke-width="4.6" stroke-dasharray="2.4 4.2"/>`;
-    }).join('');
-    return `<svg class="dyn-ropes" viewBox="0 0 420 220" aria-hidden="true" fill="none" stroke-linecap="round">${rope(184)}${rope(344)}</svg>`;
+    const rope = (x) => {
+      const d = `M${x} 28C${x + 4} 70, ${x + 4} 168, ${x} 210`;
+      return `<path d="${d}" stroke="${INK}" stroke-width="10"/><path d="${d}" stroke="#cfa86a" stroke-width="7"/><path d="${d}" stroke="#a07a48" stroke-width="7" stroke-dasharray="2.5 4.5"/>`;
+    };
+    return `<svg class="dyn-ropes" viewBox="0 0 420 220" aria-hidden="true" fill="none" stroke-linecap="round">${rope(160)}${rope(370)}</svg>`;
   }
   // How far the fuse has burnt (0 to 1): the spark rides the end of what's left.
   function setFuse(d, progress) {
@@ -1013,7 +1012,7 @@
       el.dataset.i = i;
       el.disabled = true;
       el.innerHTML = `<span class="dyn-art">${dynamiteSvg()}
-        <span class="dyn-label${a.empty ? ' empty' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>${dynamiteRopes()}</span>
+        <span class="dyn-label${a.empty ? ' empty' : ''}${a.text.length > 58 ? ' longer' : a.text.length > 34 ? ' long' : ''}"><span class="dyn-text">${esc(a.text)}</span></span>${dynamiteRopes()}</span>
         <span class="dyn-letter">${m.final ? i + 1 : 'AB'[i]}</span>
         <span class="dyn-voters"></span>
         <span class="dyn-author"></span>

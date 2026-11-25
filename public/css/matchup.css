@@ -34,7 +34,17 @@
 }
 .dyn.in { animation: dyn-in 0.6s var(--ease) both; }
 @keyframes dyn-in { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
-.dyn-art { position: relative; display: block; width: min(470px, 100%); transition: transform 0.25s var(--ease), filter 0.3s, opacity 0.3s; }
+.dyn-art { position: relative; display: block; width: min(480px, 100%); transition: transform 0.25s var(--ease), filter 0.3s, opacity 0.3s; animation: float 5.2s ease-in-out infinite alternate; container-type: inline-size; }
+/* A gentle drift, out of step between bundles (translate/rotate, so it stacks with the hover and boom transforms). */
+@keyframes float {
+  0% { translate: 0 -4px; rotate: -1.6deg; }
+  50% { translate: 3px 3px; rotate: 0.4deg; }
+  100% { translate: -2px -1px; rotate: 1.4deg; }
+}
+.dyn:nth-child(2) .dyn-art { animation-delay: -1.7s; animation-duration: 5.8s; }
+.dyn:nth-child(3) .dyn-art { animation-delay: -3.1s; animation-duration: 4.9s; }
+.dyn:nth-child(4n) .dyn-art { animation-delay: -2.4s; animation-duration: 6.1s; }
+.dyn.boom .dyn-art, .dyn.dud .dyn-art { animation-play-state: paused; }
 .dyn-svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.45)); }
 .dyn-ropes { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 
@@ -47,20 +57,20 @@
 @keyframes flicker { from { transform: scale(0.82) rotate(0deg); } to { transform: scale(1.12) rotate(14deg); } }
 @keyframes bits { from { opacity: 0.35; } to { opacity: 1; } }
 
-/* The joke: a paper label between the sticks and the ropes. */
+/* The joke: a big paper label strapped on by a rope down each edge. */
 .dyn-label {
-  position: absolute; left: 64.8%; top: 53%; width: 47%; min-height: 50%;
-  transform: translate(-50%, -50%) rotate(-2deg);
+  position: absolute; left: 63.1%; top: 52.5%; width: 50%; min-height: 60%;
+  transform: translate(-50%, -50%);
   display: flex; align-items: center; justify-content: center;
-  background: var(--paper); color: var(--ink); border: 2.5px solid var(--ink);
-  border-radius: 3px 7px 4px 6px / 6px 3px 7px 4px;
-  padding: 10px 14px; box-shadow: 0 3px 0 rgba(29, 20, 16, 0.18);
+  background: var(--paper); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 3px;
+  padding: 10px 16px; box-shadow: 0 3px 0 rgba(29, 20, 16, 0.18);
   font-family: var(--hand); font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em;
-  font-size: clamp(14px, 1.5vw, 19px); line-height: 1.12; text-align: center; overflow-wrap: anywhere;
+  font-size: 8.2cqi; line-height: 1.02; text-align: center; overflow-wrap: anywhere; /* sized to the bundle */
 }
-.dyn:nth-child(even) .dyn-label { transform: translate(-50%, -50%) rotate(1.5deg); }
+.dyn-label.long { font-size: 6.2cqi; }
+.dyn-label.longer { font-size: 4.7cqi; line-height: 1.06; }
 .dyn-label.empty { color: #8a7f76; }
-.mu-answers.final .dyn-label { font-size: clamp(13px, 1.25vw, 16px); padding: 8px 10px; }
+.mu-answers.final .dyn-label { padding: 6px 10px; }
 .dyn-letter {
   position: absolute; top: 2px; left: 2px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
   font-size: 14px; font-weight: 900; color: var(--text); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2);
@@ -136,9 +146,9 @@
   .mu-answers { grid-template-columns: 1fr; gap: 14px; }
   .mu-prompt { margin-top: 8vh; padding: 20px; }
   .dyn-art { width: min(380px, 100%); }
-  .dyn-label { font-size: 14px; padding: 8px 10px; }
+  .dyn-label { padding: 8px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mu-prompt, .dyn.in, .lit .spark-star, .lit .spark-bits { animation: none; transition: none; }
+  .mu-prompt, .dyn.in, .dyn-art, .lit .spark-star, .lit .spark-bits { animation: none; transition: none; }
   .dyn { transform: none; }
 }
