@@ -37,7 +37,7 @@
   const POINTS_PER_VOTE = 100; // x the round number
   const CLEAN_SWEEP_BONUS = 250;
   const STINGERS = 8; // end-of-matchup announcer lines, cycled (the host picks, so everyone hears the same one)
-  const STANDINGS_MS = 8000; // the final scoreboard, before the podium
+  const STANDINGS_MS = 5000; // the final scoreboard, before the podium
   const NEXT_ROUND_SECONDS = 30; // between rounds: players press "Play next round"; whoever has by then plays on
   const INTRO_MS = 30000; // the how-to-play screen (the 29 s voiceover, sound/intro-vo.mp3); the host can skip it
   const FINAL_INTRO_MS = 16500; // before the final: what's different (the 15.5 s voiceover, sound/final-round-vo.mp3)
