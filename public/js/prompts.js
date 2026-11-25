@@ -23,7 +23,7 @@
     'The worst name for a boat',
     'What the dinosaurs were arguing about before the meteor',
     'A terrible theme for a children\'s birthday party',
-    'Finish the line: A bird in the hand...',
+    'Finish the line: A bird in the hand ______',
     'Something you should never say to a wizard',
     'The worst thing to engrave on a trophy',
     'A rejected Olympic sport',
