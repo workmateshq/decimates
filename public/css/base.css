@@ -17,7 +17,7 @@ html { zoom: 0.9; }
   --gold: #ffc94a;
   --green: #5fbf8f;
   --ui: 'Archivo', 'Helvetica Neue', system-ui, sans-serif;
-  --hand: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', sans-serif; /* the joke labels */
+  --hand: 'Schoolbell', 'Chalkboard SE', 'Comic Sans MS', cursive; /* the joke labels, in the case they were typed */
   --radius: 18px;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 2px 0 rgba(255, 255, 255, 0.03) inset;
   --ease: cubic-bezier(.2, .8, .2, 1);

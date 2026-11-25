@@ -334,16 +334,19 @@
     el.classList.add(cls);
   }
 
-  // A bundle of dynamite: four sticks seen from the fuse end, tied with two loops of rope, and a fuse with a
-  // spark. The joke's label sits between the sticks and the ropes (dynamiteRopes is drawn over it).
+  // A bundle of "dynamite" that's really four hot dog sausages (the joke), tied with two loops of rope, and a
+  // fuse poking out of one of them. The joke's label sits between the sausages and the ropes
+  // (dynamiteRopes is drawn over it).
   const INK = '#1d1410';
-  const DYN_STICKS = [[124, 64, 392], [128, 170, 392], [100, 114, 384], [146, 124, 392]]; // [left end x, centre y, right end x]
-  const DYN_FUSE = 'M16 62 C 30 46, 46 84, 62 92 S 88 110, 101 114';
-  function dynStick([x0, cy, x1], r = 30, e = 13) {
-    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#d9402c" stroke="${INK}" stroke-width="2.6"/>
-      <path d="M${x0 + 22} ${cy - r * 0.5}H${x1 - 6}" stroke="#ec6a53" stroke-width="5" stroke-linecap="round" opacity=".7"/>
-      <ellipse cx="${x0}" cy="${cy}" rx="${e}" ry="${r}" fill="#c23722" stroke="${INK}" stroke-width="2.6"/>
-      <ellipse cx="${x0 + 1.5}" cy="${cy}" rx="${e - 5}" ry="${r - 9}" fill="#8f2416"/>`;
+  const DYN_STICKS = [[124, 64, 388], [128, 170, 390], [100, 114, 380], [146, 124, 392]]; // [left end x, centre y, right end x]
+  const DYN_FUSE = 'M16 62 C 30 46, 46 84, 60 92 S 76 108, 86 112';
+  function dynStick([x0, cy, x1], r = 30, e = 24) {
+    // A sausage: a capsule with plump rounded ends, a glossy sheen and a few grill marks.
+    const marks = [x0 + 18, x0 + 36, x1 - 34, x1 - 16].map((x) => `<path d="M${x - 7} ${cy + r * 0.55}L${x + 9} ${cy - r * 0.55}"/>`).join('');
+    return `<path d="M${x0} ${cy - r}H${x1}A${e} ${r} 0 0 1 ${x1} ${cy + r}H${x0}A${e} ${r} 0 0 1 ${x0} ${cy - r}Z" fill="#c8553b" stroke="${INK}" stroke-width="2.6"/>
+      <path d="M${x0 - 6} ${cy + r * 0.62}Q${(x0 + x1) / 2} ${cy + r * 0.82} ${x1 + 6} ${cy + r * 0.62}" fill="none" stroke="#9e3a24" stroke-width="7" stroke-linecap="round" opacity=".55"/>
+      <path d="M${x0 + 2} ${cy - r * 0.5}Q${(x0 + x1) / 2} ${cy - r * 0.72} ${x1 - 2} ${cy - r * 0.5}" fill="none" stroke="#ec9274" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+      <g stroke="#6b2414" stroke-width="4" stroke-linecap="round" opacity=".55">${marks}</g>`;
   }
   function dynamiteSvg() {
     const sparks = Array.from({ length: 9 }, (_, i) => {
@@ -1400,7 +1403,9 @@
         ], { duration: rand(2600, 3400), delay: rand(60, 220), easing: 'cubic-bezier(.16,1,.3,1)' });
       }
     });
-    $('game-view').animate([
+    // Shake the matchup, not #game-view: a transform there would make the fixed fx layer and flyer relative to
+    // it (clipping them to its width) until the shake ended.
+    $('matchup-view').animate([
       { transform: 'translate(0,0)' }, { transform: 'translate(-6px,3px)' }, { transform: 'translate(5px,-4px)' },
       { transform: 'translate(-3px,2px)' }, { transform: 'translate(2px,-1px)' }, { transform: 'translate(0,0)' },
     ], { duration: 420, easing: 'ease-out' });

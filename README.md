@@ -10,7 +10,7 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 - **Names**: everybody picks their own name (up to 16 characters) the first time they create or join a room. It's remembered on that device. If two people pick the same name, the second one gets a number ("Zak 2").
 - **Starting**: like Rapmates, a room can start with just you (practice) or up to 8 players. The host presses start.
 - **Practice**: when nobody else can vote on a matchup (playing alone, or 2 players with no crowd), voting is skipped and every answer goes off for no points.
-- **Look**: dark panels over a slow hypnotic spiral. Each joke is a paper label tied to a bundle of dynamite; its fuse burns down with the vote clock.
+- **Look**: dark panels over a slow hypnotic spiral. Each joke is a paper label tied to a bundle of "dynamite" that is really four hot dog sausages; its fuse burns down with the vote clock.
 - **Intro**: every game opens with a 30-second "How to play" screen. A voiceover ([`public/sound/intro-vo.mp3`](public/sound/intro-vo.mp3)) explains the rules while bullet points appear in time with it.
 - **Final-round intro**: before round 3, a 16-second screen explains the final (same prompt or comic for everyone, up to 3 votes, triple points) over its own voiceover ([`public/sound/final-round-vo.mp3`](public/sound/final-round-vo.mp3)).
 - **Both intros**: they play through the sound-effects toggle, late joiners pick them up part-way through, and the host can skip them.
@@ -144,5 +144,5 @@ Every push to `main` runs the tests and publishes the `public/` folder to GitHub
 
 - **Avatars**: [“Initial Face”](https://www.dicebear.com/styles/initial-face/) by [DiceBear](https://www.dicebear.com), licensed under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Each player's face is seeded by their name, so everyone in the room sees the same one.
 - **Comics**: *Buck Ryan* strips, public domain. FYI the Buck Ryan comic strip ran in the Daily Mirror from 22 March 1937 to July 1962.
-- **Fonts**: [Archivo](https://fonts.google.com/specimen/Archivo) and [Comic Neue](https://fonts.google.com/specimen/Comic+Neue) (the joke labels), from Google Fonts under the SIL Open Font License.
+- **Fonts**: [Archivo](https://fonts.google.com/specimen/Archivo) and [Schoolbell](https://fonts.google.com/specimen/Schoolbell) (the joke labels), from Google Fonts under the SIL Open Font License.
 - **Code**: built on the [Rapmates](https://github.com/workmateshq/rapmates) engine. All prompts and stock jokes are original.
