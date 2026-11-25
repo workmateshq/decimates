@@ -1347,12 +1347,7 @@
       explode(arts);
       showFlyer(m, winners, from);
     });
-    if (m.cleanSweep) {
-      later(1500 - t * 1000, () => {
-        playSfx('win');
-        confetti();
-      });
-    }
+    // A clean sweep is shown on the winner card only (no sound or confetti: that's saved for the final winner).
   }
 
   // ---------- The explosion ----------

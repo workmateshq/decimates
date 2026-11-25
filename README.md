@@ -44,7 +44,7 @@ Play it at **https://workmateshq.github.io/decimates/**, or jump straight into a
 | What | Points |
 | --- | --- |
 | Each vote your answer gets | 100 × the round number (round 1: 100, round 2: 200, round 3: 300) |
-| **Clean sweep**: you win a head-to-head with every vote | +250 bonus, shown on the winning card, with confetti |
+| **Clean sweep**: you win a head-to-head with every vote | +250 bonus, shown on the winning card |
 | A tie | Each answer keeps the points for its own votes. There's no clean-sweep bonus, and both sticks go boom |
 | Nobody votes | Nobody scores |
 
