@@ -1129,7 +1129,7 @@
     box.classList.toggle('final', !!m.final);
     box.classList.toggle('many', m.answers.length > 4);
     box.classList.toggle('single', m.answers.length === 1);
-    box.replaceChildren(...m.answers.map((a, i) => {
+    const cards = m.answers.map((a, i) => {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'dyn';
@@ -1142,7 +1142,16 @@
         <span class="dyn-points"></span>`;
       el.addEventListener('click', () => pick(i));
       return el;
-    }));
+    });
+    // Head to head: "OR" between the two answers, like Quiplash.
+    if (!m.final && cards.length === 2) {
+      const or = document.createElement('span');
+      or.className = 'mu-or';
+      or.setAttribute('aria-hidden', 'true');
+      or.textContent = 'OR';
+      cards.splice(1, 0, or);
+    }
+    box.replaceChildren(...cards);
     $('mu-prompt').classList.remove('docked');
     $('mu-answers').classList.remove('voting', 'revealed');
     $('mu-cast').hidden = true;
