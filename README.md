@@ -59,8 +59,8 @@ The final has no clean-sweep bonus. The player with the most points at the end w
 
 All the prompts, stock jokes and comic settings are in [`public/js/prompts.js`](public/js/prompts.js):
 
-- **303 fill-in-the-blank prompts**: everything from safe-for-work office humour to the downright silly and the slightly cheeky.
-- **50 stock jokes** for the **Stock joke** button.
+- **301 fill-in-the-blank prompts**: everything from safe-for-work office humour to the downright silly and the slightly cheeky.
+- **49 stock jokes** for the **Stock joke** button.
 - **The comics**: 9 *Buck Ryan* strips in [`public/img/comics/`](public/img/comics/).
 
 Every prompt must be unique; the tests check this.
@@ -85,7 +85,6 @@ There is no game server. Decimates is peer-to-peer, so it runs on any static hos
 - **Audio**: one `AudioContext` with a sound-effect gain and toggle (no background music yet).
   - The sound effects (whistle, boing, fuse hiss, boom) are synthesised in the browser.
   - The announcer uses `speechSynthesis` and follows the sound-effects toggle.
-  - At the end of a matchup the host picks the stinger line, so everyone hears the same one.
 
 ### Files
 

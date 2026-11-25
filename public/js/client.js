@@ -208,7 +208,7 @@
     };
   }
 
-  // ---------- The announcer (speechSynthesis): reads the prompts, and the stinger after a reveal ----------
+  // ---------- The announcer (speechSynthesis): reads the prompts ----------
   let voices = [];
   const loadVoices = () => { if (window.speechSynthesis) voices = window.speechSynthesis.getVoices() || []; };
   if (window.speechSynthesis) {
@@ -241,8 +241,6 @@
     synth.speak(u);
   }
   const hush = () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
-  // After each reveal (the host picks which, so everyone hears the same one).
-  const STINGERS = Prompts.STINGER_LINES;
 
   // ---------- Sound effects on/off ----------
   function applySoundPrefs() {
@@ -1233,7 +1231,6 @@
       explode(arts);
       showFlyer(m, winners, from);
     });
-    later(2400 - t * 1000, () => say(STINGERS[(m.stinger - 1) % STINGERS.length] || STINGERS[0], { rate: 1.05, pitch: 1.1, cancel: true }));
     if (m.cleanSweep) {
       later(1500 - t * 1000, () => {
         playSfx('win');

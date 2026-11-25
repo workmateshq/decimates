@@ -72,11 +72,11 @@ test('names and answers are trimmed, without control characters, and limited', (
   assert.equal(sanitizeAnswer({ evil: 1 }), '');
 });
 
-test('the prompts: 200+ unique, plus 50 unique stock jokes', () => {
+test('the prompts: 200+ unique, plus 40+ unique stock jokes', () => {
   assert.ok(Prompts.PROMPTS.length >= 200, `${Prompts.PROMPTS.length} prompts`);
   assert.equal(new Set(Prompts.PROMPTS.map((p) => p.toLowerCase())).size, Prompts.PROMPTS.length);
-  assert.equal(Prompts.STOCK_JOKES.length, 50);
-  assert.equal(new Set(Prompts.STOCK_JOKES).size, 50);
+  assert.ok(Prompts.STOCK_JOKES.length >= 40, `${Prompts.STOCK_JOKES.length} stock jokes`);
+  assert.equal(new Set(Prompts.STOCK_JOKES).size, Prompts.STOCK_JOKES.length);
   assert.ok(Prompts.STOCK_JOKES.every((j) => j.length <= ANSWER_MAX));
 });
 
@@ -392,8 +392,4 @@ test('the comic final: about 1 game in 3, everyone captions the same Buck Ryan s
     if (c.room.comicFinal) comics++;
   }
   assert.ok(comics > 70 && comics < 130, `${comics} of 300 games`);
-});
-
-test('the announcer has one stinger line per stinger', () => {
-  assert.equal(Prompts.STINGER_LINES.length, STINGERS);
 });
