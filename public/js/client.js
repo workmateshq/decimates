@@ -232,8 +232,8 @@
     const t = ac.currentTime;
     const out = ac.createGain();
     out.gain.setValueAtTime(0.0001, t);
-    out.gain.linearRampToValueAtTime(0.07, t + 0.2);
-    out.gain.linearRampToValueAtTime(0.12, t + Math.max(0.4, seconds));
+    out.gain.linearRampToValueAtTime(0.025, t + 0.2);
+    out.gain.linearRampToValueAtTime(0.045, t + Math.max(0.4, seconds));
     out.connect(sfxGain);
     // The hiss: white noise, high-passed, with a sizzly peak.
     const src = noiseSource();
