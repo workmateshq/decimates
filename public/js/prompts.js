@@ -322,6 +322,10 @@
   const COMIC_PROMPT = 'Caption this comic';
   const COMIC_NOTE = 'FYI the Buck Ryan comic strip ran in the Daily Mirror from 22 March 1937 to July 1962.';
 
+  // What the announcer says after each reveal (the host picks which, so everyone hears the same one).
+  const STINGER_LINES = ['Ka-boom!', 'What a blast!', 'That one went off with a bang!', 'Somebody call the fire brigade!',
+    "Now that's dynamite!", 'Boom goes the punchline!', 'Explosive stuff, folks!', 'Kaboom! Sweep up the pieces!'];
+
   // Fisher-Yates shuffle of 0..n-1 with an injectable random source (tests use a seeded one).
   function shuffledIndexes(n, random = Math.random) {
     const out = [...Array(n).keys()];
@@ -334,5 +338,5 @@
 
   const stockJoke = (random = Math.random) => STOCK_JOKES[Math.floor(random() * STOCK_JOKES.length)];
 
-  return { PROMPTS, STOCK_JOKES, COMICS, COMIC_CHANCE, COMIC_PROMPT, COMIC_NOTE, shuffledIndexes, stockJoke };
+  return { PROMPTS, STOCK_JOKES, COMICS, COMIC_CHANCE, COMIC_PROMPT, COMIC_NOTE, STINGER_LINES, shuffledIndexes, stockJoke };
 });

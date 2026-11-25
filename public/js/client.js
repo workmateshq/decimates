@@ -208,42 +208,52 @@
     };
   }
 
-  // ---------- The announcer (speechSynthesis): reads prompts and answers, and the stinger after a reveal ----------
-  let voices = [];
-  const loadVoices = () => { if (window.speechSynthesis) voices = window.speechSynthesis.getVoices() || []; };
-  if (window.speechSynthesis) {
-    loadVoices();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-  }
-  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|hysterical|grandma|grandpa|junior)\b/i;
-  function announcerVoice() {
-    if (!voices.length) loadVoices();
-    const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang) && !NOVELTY.test(v.name));
-    for (const name of ['Daniel', 'Google UK English Male', 'Microsoft Ryan', 'Arthur', 'Aaron', 'Microsoft Guy', 'Alex']) {
-      const v = en.find((x) => x.name.includes(name));
-      if (v) return v;
+  // ---------- The announcer: pre-recorded lines (Kokoro bm_daniel, British male) ----------
+  // public/js/voice.js maps each line's text to its MP3 in sound/voice/ (made by scripts/make-voice.mjs).
+  // Prompts and stingers only; players' answers aren't read out. A line without a recording stays silent.
+  const VOICE = window.DECIMATES_VOICE || {};
+  const STINGERS = Prompts.STINGER_LINES;
+  const voiceBufs = new Map(); // url -> Promise<AudioBuffer|null>
+  function loadVoice(text) {
+    const url = VOICE[text];
+    const a = getAudioCtx();
+    if (!url || !a) return Promise.resolve(null);
+    if (!voiceBufs.has(url)) {
+      voiceBufs.set(url, fetch(url)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+        .then((ab) => new Promise((res, rej) => a.decodeAudioData(ab, res, rej)))
+        .catch(() => { voiceBufs.delete(url); return null; }));
     }
-    return en[0] || null;
+    return voiceBufs.get(url);
   }
-  // Lines queue up; cancel() clears them. Only with sound effects on.
-  function say(text, { rate = 1.05, pitch = 1.1, cancel = false } = {}) {
-    const synth = window.speechSynthesis;
-    if (!synth || !soundPrefs.sfx || !text) return;
-    if (cancel) synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const v = announcerVoice();
-    if (v) {
-      u.voice = v;
-      u.lang = v.lang;
-    }
-    u.rate = rate;
-    u.pitch = pitch;
-    synth.speak(u);
+  let voiceNow = null; // { src, gain, token }
+  let voiceToken = 0;
+  function say(text) {
+    if (!soundPrefs.sfx || !text) return;
+    hush();
+    const token = voiceToken;
+    loadVoice(text).then((buf) => {
+      if (!buf || token !== voiceToken || !soundPrefs.sfx) return;
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const g = ac.createGain();
+      g.gain.value = 1.2;
+      src.connect(g).connect(sfxGain);
+      src.start();
+      voiceNow = { src, gain: g };
+      src.onended = () => { if (voiceNow && voiceNow.src === src) voiceNow = null; };
+    });
   }
-  const hush = () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
-  // After each reveal (the host picks which, so everyone hears the same one).
-  const STINGERS = ['Ka-boom!', 'What a blast!', 'That one went off with a bang!', 'Somebody call the fire brigade!',
-    "Now that's dynamite!", 'Boom goes the punchline!', 'Explosive stuff, folks!', 'Kaboom! Sweep up the pieces!'];
+  function hush() {
+    voiceToken += 1;
+    if (!voiceNow || !ac) return;
+    const { src, gain } = voiceNow;
+    voiceNow = null;
+    const n = ac.currentTime;
+    gain.gain.setValueAtTime(gain.gain.value, n);
+    gain.gain.linearRampToValueAtTime(0.0001, n + 0.12);
+    try { src.stop(n + 0.15); } catch { /* already stopped */ }
+  }
 
   // ---------- Sound effects on/off ----------
   function applySoundPrefs() {
@@ -409,6 +419,7 @@
     $('room-view').style.display = 'block';
     $('room-code-txt').textContent = payload.roomCode;
     loadIntroVo();
+    STINGERS.forEach(loadVoice);
     $('lobby-card').classList.toggle('link-room', state.linkRoom);
     renderSlots();
     const count = state.lobby.players.length;
@@ -1074,7 +1085,7 @@
     if (t < 0.2) {
       replay(prompt, 'pop');
       playSfx('whistle');
-      say(m.prompt, { cancel: true });
+      say(m.prompt);
     }
     later((1.8 - t) * 1000, () => prompt.classList.add('docked'));
     // Answers land one after another (all together in a big final).
@@ -1085,7 +1096,6 @@
         d.classList.add('in');
         if (at - t > -0.2) {
           playSfx('boing');
-          if (!m.final) say(m.answers[i].text, { rate: 1.08 });
         }
       });
     });
@@ -1235,7 +1245,7 @@
       explode(arts);
       showFlyer(m, winners, from);
     });
-    later(2400 - t * 1000, () => say(STINGERS[(m.stinger - 1) % STINGERS.length] || STINGERS[0], { rate: 1.05, pitch: 1.1, cancel: true }));
+    later(2400 - t * 1000, () => say(STINGERS[(m.stinger - 1) % STINGERS.length] || STINGERS[0]));
     if (m.cleanSweep) {
       later(1500 - t * 1000, () => {
         playSfx('win');
