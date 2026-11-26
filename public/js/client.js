@@ -294,14 +294,16 @@
   function announcerVoice() {
     if (!voices.length) loadVoices();
     const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang) && !NOVELTY.test(v.name));
-    for (const name of ['Daniel', 'Google UK English Male', 'Microsoft Ryan', 'Arthur', 'Aaron', 'Microsoft Guy', 'Alex']) {
+    // The announcer: one British female voice. Martha on Apple devices, otherwise the closest match on
+    // Chrome / Windows / Android, then any British voice, then any English one.
+    for (const name of ['Martha', 'Google UK English Female', 'Microsoft Sonia', 'Microsoft Libby', 'Microsoft Hazel', 'Serena', 'Kate', 'Stephanie']) {
       const v = en.find((x) => x.name.includes(name));
       if (v) return v;
     }
-    return en[0] || null;
+    return en.find((x) => /^en[-_]GB/i.test(x.lang)) || en[0] || null;
   }
   // Lines queue up; cancel() clears them. Only with sound effects on.
-  function say(text, { rate = 1.05, pitch = 1.1, cancel = false } = {}) {
+  function say(text, { rate = 1.05, pitch = 1, cancel = false } = {}) {
     const synth = window.speechSynthesis;
     if (!synth || !soundPrefs.sfx || !text) return;
     if (cancel) synth.cancel();
