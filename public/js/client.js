@@ -294,13 +294,21 @@
   function announcerVoice() {
     if (!voices.length) loadVoices();
     const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang) && !NOVELTY.test(v.name));
-    // The announcer: one British female voice. Martha on Apple devices, otherwise the closest match on
-    // Chrome / Windows / Android, then any British voice, then any English one.
+    // The announcer: a British female voice. First a high-quality one (Edge's neural "Online (Natural)" voices,
+    // Apple's downloadable Premium / Enhanced ones), British then any accent; then Martha on Apple devices or the
+    // closest match on Chrome / Windows / Android; then any female voice; then any British or English one.
+    const HQ = /\b(natural|neural|premium|enhanced)\b/i;
+    const FEMALE = /\b(female|martha|serena|kate|stephanie|sonia|libby|hazel|maisie|emma|bella|abbi|olivia|natasha|clara|amy|emily|samantha|karen|moira|tessa|aria|jenny|zira|susan|fiona|allison|ava|nicky|catherine|michelle|ana|zoe|joanna|kendra|kimberly|salli|google us english)\b/i;
+    const MALE = /\b(male|daniel|arthur|ryan|thomas|george|oliver|alex|aaron|fred|guy|david|mark|christopher|eric|roger|andrew|brian|jamie|rishi|tom|evan|reed|ralph)\b/i;
+    const female = en.filter((x) => FEMALE.test(x.name) && !MALE.test(x.name));
+    const gb = (x) => /^en[-_]GB/i.test(x.lang);
+    const hq = female.filter((x) => HQ.test(x.name));
+    if (hq.find(gb)) return hq.find(gb);
     for (const name of ['Martha', 'Google UK English Female', 'Microsoft Sonia', 'Microsoft Libby', 'Microsoft Hazel', 'Serena', 'Kate', 'Stephanie']) {
-      const v = en.find((x) => x.name.includes(name));
+      const v = female.find((x) => x.name.includes(name));
       if (v) return v;
     }
-    return en.find((x) => /^en[-_]GB/i.test(x.lang)) || en[0] || null;
+    return hq[0] || female.find(gb) || female[0] || en.find(gb) || en[0] || null;
   }
   // Lines queue up; cancel() clears them. Only with sound effects on.
   function say(text, { rate = 1.05, pitch = 1, cancel = false } = {}) {
